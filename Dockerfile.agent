@@ -12,4 +12,4 @@ RUN pip install --no-cache-dir -e .
 
 COPY . .
 
-CMD ["celery", "-A", "worker.celery_app", "worker", "--loglevel=info", "-Q", "agent_a"]
+CMD ["python", "-u", "runner.py"]

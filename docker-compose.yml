@@ -30,17 +30,48 @@ services:
       retries: 5
     restart: unless-stopped
 
+  executor:
+    build:
+      context: ./executor
+      dockerfile: Dockerfile
+    volumes:
+      - ./data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
   agent_a:
     build:
       context: .
       dockerfile: Dockerfile.agent
     environment:
       AGENT_ID: agent_a
+      SESSION_INTERVAL: ${SESSION_INTERVAL:-300}
       DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
       REDIS_URL: redis://redis:6379/0
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       LLM_MODEL: ${LLM_MODEL:-gpt-4.1}
-      DISTILL_MODEL: ${DISTILL_MODEL:-gpt-4o-mini}
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent_b:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    environment:
+      AGENT_ID: agent_b
+      SESSION_INTERVAL: ${SESSION_INTERVAL:-300}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
+      REDIS_URL: redis://redis:6379/0
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1}
     volumes:
       - ./data:/app/data
     depends_on:

@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     AGENT_ID: str = "agent_a"
+    BUDGET_USD: float = 5.00
 
 
 settings = Settings()

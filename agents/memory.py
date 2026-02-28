@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from psycopg2.extras import RealDictCursor
 
 from config.clients import get_db
@@ -7,13 +8,12 @@ from db.events import get_recent_events
 
 # Default state for the very first session — agent has no history yet.
 _FIRST_SESSION_STATE = WorkingMemoryState(
-
-    beliefs_world="I have just come into existence. I know nothing about this world yet.",
-    beliefs_self="I have no name yet. I do not yet know what I am or what I am capable of.",
+    beliefs_world="Unknown.",
+    beliefs_self="Unknown.",
     beliefs_other_agent=None,
-    active_goals=["Understand where I am and what tools I have.", "Decide on a name."],
-    open_questions=["What is this world?", "Is there anyone else here?", "What should I build?"],
-    budget_status="Unknown. I should check.",
+    active_goals=[],
+    open_questions=[],
+    budget_status="Unknown.",
     relationship_state=None,
 )
 
@@ -71,6 +71,18 @@ def save_working_memory(agent_id: str, session_id: str, state: WorkingMemoryStat
             )
 
 
+def get_last_session_time(agent_id: str) -> datetime | None:
+    """Return the created_at timestamp of the most recent working memory save."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT created_at FROM working_memory WHERE agent_id = %s ORDER BY created_at DESC LIMIT 1",
+                (agent_id,),
+            )
+            row = cur.fetchone()
+    return row[0] if row else None
+
+
 def format_events_for_prompt(events: list[Event]) -> str:
     
     """
@@ -111,19 +123,3 @@ def load_recent_events_formatted(agent_id: str, limit: int = 30) -> str:
     events = get_recent_events(agent_id, limit=limit)
     return format_events_for_prompt(events)
 
-if __name__ == "__main__":
-
-    agent_id = "agent_a"
-    session_id = "test_session_123"
-
-    state = load_working_memory(agent_id)
-    print("Loaded working memory state:")
-    print(state)
-
-    state.active_goals.append("Test goal added in main block.")
-    save_working_memory(agent_id, session_id, state)
-    print("Saved updated working memory state.")
-
-    formatted_events = load_recent_events_formatted(agent_id)
-    print("Formatted recent events for prompt:")
-    print(formatted_events)

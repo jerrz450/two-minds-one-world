@@ -5,3 +5,6 @@ psycopg2-binary>=2.9
 pydantic>=2.0
 pydantic-settings>=2.0
 python-dotenv>=1.0
+duckduckgo-search>=6.0
+requests>=2.31
+html2text>=2024.2

@@ -45,6 +45,16 @@ CREATE TABLE IF NOT EXISTS world_artifacts (
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS direct_messages (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    from_agent_id TEXT NOT NULL,
+    to_agent_id   TEXT NOT NULL,
+    session_id    UUID NOT NULL,
+    content       TEXT NOT NULL,
+    read          BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS session_messages (
       id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       agent_id    TEXT NOT NULL,

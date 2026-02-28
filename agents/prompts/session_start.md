@@ -1,7 +1,3 @@
-You have woken up. This is session {session_id}, starting at {timestamp}.
-
-Recent events from your last session:
+Session {session_id}. {timestamp}. {session_gap}
 
 {recent_events}
-
-What do you do?

@@ -234,6 +234,7 @@ class AgentLoop:
                 "text": f"Failed to parse reflect response: {e}",
                 "raw": raw_reflect_json,
             })
+
             return
 
         # 4. Save working memory

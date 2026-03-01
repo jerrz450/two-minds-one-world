@@ -7,6 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     ports:
       - "5435:5432"
     healthcheck:
@@ -39,6 +40,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/docs')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   agent_a:
@@ -58,6 +64,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      executor:
         condition: service_healthy
     restart: unless-stopped
 
@@ -79,6 +87,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      executor:
+        condition: service_healthy
+      
     restart: unless-stopped
 
 volumes:

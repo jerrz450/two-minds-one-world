@@ -63,6 +63,31 @@ def update_artifact(name: str, content: str) -> dict:
     return {"status": "updated"}
 
 
+def decay_artifacts(amount: int = 10) -> list[str]:
+    """Reduce health of all artifacts by amount. Delete those that reach 0. Returns names of deleted artifacts."""
+
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                UPDATE world_artifacts SET health = GREATEST(health - %s, 0)
+                RETURNING name, health
+                """,
+                (amount,),
+            )
+            updated = cur.fetchall()
+
+            dead = [r["name"] for r in updated if r["health"] == 0]
+
+            if dead:
+                cur.execute(
+                    "DELETE FROM world_artifacts WHERE name = ANY(%s)",
+                    (dead,),
+                )
+
+    return dead
+
+
 def list_artifacts() -> list[dict]:
 
     """List all world artifacts with name, health, and creation time."""

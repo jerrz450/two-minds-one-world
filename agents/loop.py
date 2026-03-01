@@ -7,6 +7,7 @@ from typing import cast
 from openai.types.chat import ChatCompletionMessageParam
 
 from agents.context import build_messages, build_reflect_prompt
+from agents.stimulus import get_stimulus
 from agents.memory import load_working_memory, load_recent_events_formatted, save_working_memory, get_last_session_time
 from config.clients import get_openai
 from config.settings import settings
@@ -14,9 +15,10 @@ from db.budget import log_cost
 from db.events import log_event
 from db.messages import append_message
 from db.models import WorkingMemoryState
+from tools.artifacts import decay_artifacts
 from tools.registry import TOOLS, TOOL_FUNCTIONS
 
-MAX_TURNS = 10
+MAX_TURNS = 25
 
 class AgentLoop:
 
@@ -86,11 +88,14 @@ class AgentLoop:
     async def run(self) -> None:
 
         # 1. Build and persist opening context
+        other_id = "agent_b" if self.agent_id == "agent_a" else "agent_a"
+
         self.messages = build_messages(
             agent_id=self.agent_id,
             session_id=self.session_id,
             state=load_working_memory(self.agent_id),
             recent_events=load_recent_events_formatted(self.agent_id),
+            other_agent_events=load_recent_events_formatted(other_id, limit=15),
             last_session_at=get_last_session_time(self.agent_id),
         )
 
@@ -105,6 +110,18 @@ class AgentLoop:
             )
 
         print(f"\n[{self.agent_id}] session {self.session_id[:8]} started")
+
+        dead = decay_artifacts()
+        if dead:
+            log_event(self.agent_id, self.session_id, "observation", {
+                "text": f"Artifact decay: {', '.join(dead)} perished this session.",
+            })
+            print(f"  [decay] artifacts lost: {dead}")
+
+        stimulus = get_stimulus()
+        if stimulus:
+            log_event(self.agent_id, self.session_id, "observation", {"text": stimulus})
+            print(f"  [stimulus] {stimulus}")
 
         log_event(self.agent_id, self.session_id, "observation", {
             "text": "Session started.",
@@ -184,7 +201,7 @@ class AgentLoop:
                     "role": "assistant",
                     "content": message.content,
                 }))
-                
+
                 self._append(cast(ChatCompletionMessageParam, {
                     "role": "user",
                     "content": "Call finish_session when you are done.",
@@ -232,6 +249,7 @@ class AgentLoop:
 
 
 if __name__ == "__main__":
+    
     import sys
     agent_id = sys.argv[1] if len(sys.argv) > 1 else "agent_a"
     asyncio.run(AgentLoop(agent_id).run())

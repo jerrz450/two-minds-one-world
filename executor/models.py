@@ -1,13 +1,14 @@
 from pydantic import BaseModel
 
-
 class ExecRequest(BaseModel):
+
     code: str
     agent_id: str
     name: str | None = None
-
+    requirements: list[str] | None = None
 
 class ExecResponse(BaseModel):
+
     stdout: str
     stderr: str
     exit_code: int

@@ -12,7 +12,7 @@ def _strip_fences(code: str) -> str:
 
     # Find the first opening fence
     start = None
-    
+
     for i, line in enumerate(lines):
         if line.strip().startswith("```"):
             start = i
@@ -86,3 +86,4 @@ def save_script(code: str, agent_id: str, name: str | None) -> Path:
     path.write_text(code, encoding="utf-8")
 
     return path
+

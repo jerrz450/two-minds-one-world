@@ -1,7 +1,7 @@
 from typing import Callable
 from openai.types.chat import ChatCompletionToolParam
 
-from tools.code import execute_code
+from tools.code import execute_code, list_scripts
 from tools.journal import write_journal
 from tools.board import write_board, read_board
 from tools.budget import get_budget_status
@@ -26,6 +26,7 @@ TOOL_FUNCTIONS: dict[str, Callable[..., object]] = {
     "get_budget_status":         get_budget_status,
     "finish_session":            finish_session,
     "execute_code":              execute_code,
+    "list_scripts":              list_scripts,
     # Web
     "web_search":                web_search,
     "fetch_url":                 fetch_url,
@@ -104,6 +105,14 @@ TOOLS: list[ChatCompletionToolParam] = [
     {
         "type": "function",
         "function": {
+            "name": "list_scripts",
+            "description": "List all Python scripts saved in your workspace, sorted by modification time.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "execute_code",
             "description": "Write and run Python code in an isolated environment. Stdout, stderr, and exit code are returned. If the code fails, read the error and try again with a fix. Scripts are saved to your workspace and persist between sessions.",
             "parameters": {
@@ -111,6 +120,7 @@ TOOLS: list[ChatCompletionToolParam] = [
                 "properties": {
                     "code": {"type": "string", "description": "The Python code to run."},
                     "name": {"type": "string", "description": "Optional filename for the script (without .py). Helps you find it later."},
+                    "requirements": {"type": "array", "items": {"type": "string"}, "description": "Pip packages to install before running (e.g. [\"requests\", \"numpy\"]). Merged into your persistent requirements.txt."},
                 },
                 "required": ["code"],
             },

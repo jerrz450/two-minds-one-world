@@ -15,8 +15,11 @@ dependencies = [
     "duckduckgo-search>=6.0",
     "requests>=2.31",
     "html2text>=2024.2",
+    "playwright>=1.40.0",
+    "browser-use>=0.1.40",
+    "langchain-openai>=0.2.0",
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["agents*", "tools*", "db*", "worker*", "config*"]
+include = ["agents*", "tools*", "db*", "world*", "config*"]

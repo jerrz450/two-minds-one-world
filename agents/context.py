@@ -5,6 +5,8 @@ from openai.types.chat import ChatCompletionMessageParam
 from db.models import WorkingMemoryState
 from tools.board import read_board
 from tools.artifacts import list_artifacts
+from world.world_main import get_recent_world_events
+from agents.memory import pop_private_messages
 
 _ROOT = Path(__file__).resolve().parents[1]
 
@@ -83,6 +85,8 @@ def fill_session_start(
     board: str,
     artifacts: str,
     active_goals: list[str],
+    world_events: str,
+    private_message: str | None,
 ) -> str:
     return template.format(
         session_id=session_id,
@@ -93,6 +97,8 @@ def fill_session_start(
         board=board,
         artifacts=artifacts,
         active_goals=_format_list(active_goals),
+        world_events=world_events,
+        private_message=private_message or "",
     )
 
 
@@ -108,15 +114,18 @@ def build_messages(
     prompts      = load_prompts(agent_id)
     constitution = load_constitution(agent_id)
 
-    board     = _format_board(read_board())
-    artifacts = _format_artifacts(list_artifacts())
+    board            = _format_board(read_board())
+    artifacts        = _format_artifacts(list_artifacts())
+    world_events     = "\n".join(get_recent_world_events()) or "No world events yet."
+    private_messages = pop_private_messages(agent_id)
+    private          = "\n".join(private_messages) if private_messages else None
 
     return [
         {"role": "system", "content": fill_system_prompt(prompts["system"], constitution, state)},
         {"role": "user",   "content": fill_session_start(
             prompts["session_start"], session_id, recent_events,
             last_session_at, other_agent_events, board, artifacts,
-            state.active_goals,
+            state.active_goals, world_events, private,
         )},
     ]
 

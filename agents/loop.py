@@ -7,7 +7,6 @@ from typing import cast
 from openai.types.chat import ChatCompletionMessageParam
 
 from agents.context import build_messages, build_reflect_prompt
-from agents.stimulus import get_stimulus
 from agents.memory import load_working_memory, load_recent_events_formatted, save_working_memory, get_last_session_time
 from config.clients import get_openai
 from config.settings import settings
@@ -15,7 +14,6 @@ from db.budget import log_cost
 from db.events import log_event
 from db.messages import append_message
 from db.models import WorkingMemoryState
-from tools.artifacts import decay_artifacts
 from tools.registry import TOOLS, TOOL_FUNCTIONS
 
 MAX_TURNS = 25
@@ -110,18 +108,6 @@ class AgentLoop:
             )
 
         print(f"\n[{self.agent_id}] session {self.session_id[:8]} started")
-
-        dead = decay_artifacts()
-        if dead:
-            log_event(self.agent_id, self.session_id, "observation", {
-                "text": f"Artifact decay: {', '.join(dead)} perished this session.",
-            })
-            print(f"  [decay] artifacts lost: {dead}")
-
-        stimulus = get_stimulus()
-        if stimulus:
-            log_event(self.agent_id, self.session_id, "observation", {"text": stimulus})
-            print(f"  [stimulus] {stimulus}")
 
         log_event(self.agent_id, self.session_id, "observation", {
             "text": "Session started.",

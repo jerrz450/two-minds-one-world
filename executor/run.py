@@ -34,6 +34,7 @@ def run_code(script_path: Path, agent_id: str) -> ExecResponse:
         "--memory", MEMORY,
         "--cpus", CPUS,
         "--volumes-from", executor_container_id,
+        "--workdir", str(agent_workspace),
         "python:3.12-slim",
         "sh", "-c", entrypoint,
     ]

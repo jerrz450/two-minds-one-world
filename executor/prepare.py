@@ -72,7 +72,6 @@ def save_requirements(packages: list[str], agent_id: str) -> None:
     merged = existing | set(p.strip() for p in packages if p.strip())
     req_file.write_text("\n".join(sorted(merged)) + "\n", encoding="utf-8")
 
-
 def save_script(code: str, agent_id: str, name: str | None) -> Path:
     
     """Save to data/agents/{agent_id}/workspace/ and return the path."""

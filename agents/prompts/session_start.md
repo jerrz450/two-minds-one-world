@@ -1,5 +1,9 @@
 Session {session_id}. {timestamp}. {session_gap}
 
+## World events
+{world_events}
+{private_message}
+
 ## Your goals
 Work on these. Don't just read them — make progress on them this session.
 {active_goals}

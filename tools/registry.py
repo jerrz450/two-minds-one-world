@@ -1,12 +1,14 @@
 from typing import Callable
 from openai.types.chat import ChatCompletionToolParam
 
-from tools.code import execute_code, list_scripts
+from tools.code import execute_code, list_scripts, run_script
 from tools.journal import write_journal
 from tools.board import write_board, read_board
 from tools.budget import get_budget_status
 from tools.web import web_search, fetch_url
+from tools.browser import browse_web
 from tools.artifacts import create_artifact, read_artifact, update_artifact, list_artifacts
+from tools.world import get_world_state, get_survival_probability
 from tools.self_tools import (
     list_source, read_source, read_agent_constitution,
     read_working_memory_history, edit_constitution, edit_prompt,
@@ -27,9 +29,14 @@ TOOL_FUNCTIONS: dict[str, Callable[..., object]] = {
     "finish_session":            finish_session,
     "execute_code":              execute_code,
     "list_scripts":              list_scripts,
+    "run_script":                run_script,
     # Web
     "web_search":                web_search,
     "fetch_url":                 fetch_url,
+    "browse_web":                browse_web,
+    # World
+    "get_world_state":           get_world_state,
+    "get_survival_probability":  get_survival_probability,
     # World artifacts
     "create_artifact":           create_artifact,
     "read_artifact":             read_artifact,
@@ -113,6 +120,20 @@ TOOLS: list[ChatCompletionToolParam] = [
     {
         "type": "function",
         "function": {
+            "name": "run_script",
+            "description": "Run a previously saved script from your workspace by name. Use list_scripts() to see what is available.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "The script name as it appears in list_scripts() (with or without .py)."},
+                },
+                "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "execute_code",
             "description": "Write and run Python code in an isolated environment. Stdout, stderr, and exit code are returned. If the code fails, read the error and try again with a fix. Scripts are saved to your workspace and persist between sessions.",
             "parameters": {
@@ -124,6 +145,23 @@ TOOLS: list[ChatCompletionToolParam] = [
                 },
                 "required": ["code"],
             },
+        },
+    },
+    # --- World state ---
+    {
+        "type": "function",
+        "function": {
+            "name": "get_world_state",
+            "description": "Get a snapshot of the current world: all artifacts and their health, recent world events, current cycle number, and cumulative scores per agent.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_survival_probability",
+            "description": "Check your current survival probability (0.0–1.0) based on your activity score. The exact formula is hidden — only the result is shown.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
     # --- Web ---
@@ -151,6 +189,23 @@ TOOLS: list[ChatCompletionToolParam] = [
                 "type": "object",
                 "properties": {"url": {"type": "string"}},
                 "required": ["url"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browse_web",
+            "description": "Launch a browser agent to complete a complex web task — useful for JS-heavy pages, multi-step navigation, form interaction, or anything fetch_url cannot handle.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task": {
+                        "type": "string",
+                        "description": "What to do in the browser, e.g. 'Go to example.com, find the pricing page, and return the plan names and prices.'",
+                    },
+                },
+                "required": ["task"],
             },
         },
     },

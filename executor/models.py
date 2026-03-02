@@ -7,6 +7,11 @@ class ExecRequest(BaseModel):
     name: str | None = None
     requirements: list[str] | None = None
 
+class RunFileRequest(BaseModel):
+
+    path: str
+    agent_id: str
+
 class ExecResponse(BaseModel):
 
     stdout: str

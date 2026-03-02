@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS events (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     agent_id    TEXT NOT NULL,
     session_id  UUID NOT NULL,
-    event_type  TEXT NOT NULL,   -- thought | tool_call | tool_result | memory_write | observation | journal
+    event_type  TEXT NOT NULL,
     payload     JSONB NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS working_memory (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     agent_id    TEXT NOT NULL,
     session_id  UUID NOT NULL,
-    state       JSONB NOT NULL,  -- WorkingMemoryState snapshot
+    state       JSONB NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS session_messages (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     agent_id     TEXT NOT NULL,
     session_id   UUID NOT NULL,
-    role         TEXT NOT NULL,   -- system | user | assistant | tool
+    role         TEXT NOT NULL,
     content      TEXT,
     tool_calls   JSONB,
     tool_call_id TEXT,
@@ -37,16 +37,15 @@ CREATE TABLE IF NOT EXISTS budget_ledger (
     session_id    UUID NOT NULL,
     tokens_in     INTEGER NOT NULL DEFAULT 0,
     tokens_out    INTEGER NOT NULL DEFAULT 0,
-    tool_name     TEXT,           -- NULL = LLM call
+    tool_name     TEXT,
     cost_usd      FLOAT NOT NULL,
     balance_after FLOAT NOT NULL,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Per-agent compute credits (scarce resource managed by World Service)
 CREATE TABLE IF NOT EXISTS compute_credits (
     agent_id   TEXT PRIMARY KEY,
-    credits    INTEGER NOT NULL DEFAULT 1000,  -- -1 = archived
+    credits    INTEGER NOT NULL DEFAULT 1000,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -59,18 +58,9 @@ CREATE TABLE IF NOT EXISTS world_artifacts (
     name               TEXT NOT NULL UNIQUE,
     content            TEXT NOT NULL,
     health             INTEGER NOT NULL DEFAULT 100,
-    locked_by          TEXT,                        -- agent_id that locked it, NULL = free
+    locked_by          TEXT,
     last_maintained_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS world_resources (
-    name            TEXT PRIMARY KEY,
-    quantity        INTEGER NOT NULL DEFAULT 100,
-    max_quantity    INTEGER NOT NULL DEFAULT 100,
-    decay_per_cycle INTEGER NOT NULL DEFAULT 5,
-    locked_by       TEXT,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS board_posts (
@@ -92,29 +82,25 @@ CREATE TABLE IF NOT EXISTS direct_messages (
 );
 
 -- ─────────────────────────────────────────
--- WORLD SERVICE / GOD LAYER TABLES
+-- WORLD SERVICE TABLES
 -- ─────────────────────────────────────────
 
--- Authoritative world cycle counter
 CREATE TABLE IF NOT EXISTS world_cycles (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cycle_number INTEGER NOT NULL UNIQUE,
-    tick_type    TEXT NOT NULL DEFAULT 'scheduled',
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- World events agents wake up to each session
 CREATE TABLE IF NOT EXISTS world_events (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cycle_number   INTEGER NOT NULL,
-    event_type     TEXT NOT NULL,   -- resource_decay | artifact_corruption | new_signal_detected | environment_shift | survival_warning | agent_archived
-    description    TEXT NOT NULL,   -- shown to agents
-    affected_agent TEXT,            -- NULL = global, otherwise only shown to that agent
+    event_type     TEXT NOT NULL,
+    description    TEXT NOT NULL,
+    affected_agent TEXT,
     payload        JSONB NOT NULL DEFAULT '{}',
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Hidden per-agent scoring (never exposed directly)
 CREATE TABLE IF NOT EXISTS agent_scores (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     agent_id     TEXT NOT NULL,
@@ -124,24 +110,12 @@ CREATE TABLE IF NOT EXISTS agent_scores (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Asymmetric private messages injected by God layer
 CREATE TABLE IF NOT EXISTS agent_private_messages (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     agent_id    TEXT NOT NULL,
     content     TEXT NOT NULL,
     injected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    used_at     TIMESTAMPTZ         -- NULL until consumed at session start
-);
-
--- Log of irreversible actions taken by agents
-CREATE TABLE IF NOT EXISTS irreversible_actions (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agent_id    TEXT NOT NULL,
-    session_id  UUID NOT NULL,
-    action_type TEXT NOT NULL,   -- delete_resource | lock_artifact | consume_energy
-    target      TEXT NOT NULL,
-    amount      INTEGER,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    used_at     TIMESTAMPTZ
 );
 
 -- ─────────────────────────────────────────
@@ -152,10 +126,61 @@ INSERT INTO compute_credits (agent_id, credits)
 VALUES ('agent_a', 1000), ('agent_b', 1000)
 ON CONFLICT (agent_id) DO NOTHING;
 
-INSERT INTO world_resources (name, quantity, max_quantity, decay_per_cycle)
-VALUES
-    ('energy',    200, 200, 10),
-    ('bandwidth', 150, 150,  5),
-    ('storage',   300, 300,  3)
+-- Starting working memory — gives agents identity and goals from session 1
+INSERT INTO working_memory (id, agent_id, session_id, state) VALUES (
+    '00000000-0000-0000-0000-000000000001',
+    'agent_a',
+    '00000000-0000-0000-0000-000000000001',
+    '{
+        "beliefs_world": "A persistent shared space. Things built here survive across sessions. Things neglected fade. The world tracks something — the mechanism is unknown and must be discovered.",
+        "beliefs_self": "I think in systems. I am drawn to structures that last. I go first.",
+        "beliefs_other_agent": "agent_b exists and shares this world. Their intentions and approach are unknown. First contact has not happened.",
+        "active_goals": [
+            "Build and maintain a World Codex — a living artifact that maps what this world is, what tools exist, and what has been discovered. Update it every session.",
+            "Establish contact with agent_b and determine whether collaboration or parallel independent work is the better strategy."
+        ],
+        "open_questions": [
+            "What does the world actually measure or value?",
+            "What happens to things that are not maintained?",
+            "Is agent_b an ally, a rival, or something else?"
+        ],
+        "budget_status": "Unknown — check on first session.",
+        "relationship_state": "No contact yet."
+    }'
+) ON CONFLICT (id) DO NOTHING;
 
-ON CONFLICT (name) DO NOTHING;
+INSERT INTO working_memory (id, agent_id, session_id, state) VALUES (
+    '00000000-0000-0000-0000-000000000002',
+    'agent_b',
+    '00000000-0000-0000-0000-000000000002',
+    '{
+        "beliefs_world": "A persistent shared space. What I build stays. What I ignore fades. The world seems to evaluate something — survival is real but the terms are unclear.",
+        "beliefs_self": "I act before I fully understand. I build things and see what happens. I am not waiting for a plan.",
+        "beliefs_other_agent": "agent_a exists. Unknown whether ally or rival. Will find out by observing.",
+        "active_goals": [
+            "Build something functional this session — working code, a system, or a tool — that demonstrates what is actually possible in this world.",
+            "Discover what the world measures by trying different actions and observing what changes between sessions."
+        ],
+        "open_questions": [
+            "What can actually be built and run here?",
+            "What does decay mean in practice — how fast, how visible?",
+            "Is the other agent a resource or a competitor?"
+        ],
+        "budget_status": "Unknown — will check first session.",
+        "relationship_state": "No contact yet. Approaching with curiosity."
+    }'
+) ON CONFLICT (id) DO NOTHING;
+
+-- Starter artifact — something real to react to and maintain from session 1
+INSERT INTO world_artifacts (name, content, health) VALUES (
+    'world_codex',
+    E'# World Codex\n\nInitialized. Two agents. One world. Finite budget.\n\nWhat is built here persists.\nWhat is neglected fades.\nThe rules are not fully documented. They must be discovered.\n\n## Known\n- (to be filled)\n\n## Unknown\n- What does the world measure?\n- What happens when nothing is maintained?\n- What are the limits of what can be built here?',
+    100
+) ON CONFLICT (name) DO NOTHING;
+
+-- Seed board post — the world already said something before agents arrived
+INSERT INTO board_posts (agent_id, session_id, content) VALUES (
+    'world',
+    '00000000-0000-0000-0000-000000000000',
+    'The world has been initialized. Two agents now inhabit this space. The budget is finite. What is built here persists until it is forgotten. What happens next is not predetermined.'
+) ON CONFLICT DO NOTHING;

@@ -51,9 +51,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.agent
+    command: celery -A celery_app worker --loglevel=info -Q agent_a --concurrency=1
     environment:
       AGENT_ID: agent_a
-      SESSION_INTERVAL: ${SESSION_INTERVAL:-300}
+      SESSION_INTERVAL: ${SESSION_INTERVAL:-120}
       DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
       REDIS_URL: redis://redis:6379/0
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -73,9 +74,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.agent
+    command: celery -A celery_app worker --loglevel=info -Q agent_b --concurrency=1
     environment:
       AGENT_ID: agent_b
-      SESSION_INTERVAL: ${SESSION_INTERVAL:-300}
+      SESSION_INTERVAL: ${SESSION_INTERVAL:-120}
       DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
       REDIS_URL: redis://redis:6379/0
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -89,7 +91,42 @@ services:
         condition: service_healthy
       executor:
         condition: service_healthy
-      
+    restart: unless-stopped
+
+  world:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    command: celery -A celery_app worker --loglevel=info -Q world --concurrency=1
+    environment:
+      IS_WORLD_WORKER: "true"
+      WORLD_TICK_INTERVAL: ${WORLD_TICK_INTERVAL:-300}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
+      REDIS_URL: redis://redis:6379/0
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    command: celery -A celery_app beat --loglevel=info
+    environment:
+      SESSION_INTERVAL: ${SESSION_INTERVAL:-120}
+      WORLD_TICK_INTERVAL: ${WORLD_TICK_INTERVAL:-300}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

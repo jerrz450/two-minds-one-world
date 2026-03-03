@@ -15,7 +15,9 @@ _SYSTEM = (
 
 
 def inject_asymmetric_messages(cycle: int) -> None:
+
     """Every 10 cycles, inject LLM-generated asymmetric private hints to each agent."""
+
     if cycle % 10 != 0:
         return
 
@@ -30,6 +32,7 @@ def inject_asymmetric_messages(cycle: int) -> None:
     )
 
     try:
+
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
         response = client.chat.completions.create(
             model=settings.DISTILL_MODEL,
@@ -41,7 +44,9 @@ def inject_asymmetric_messages(cycle: int) -> None:
             temperature=0.9,
             response_format={"type": "json_object"},
         )
+
         messages = json.loads(response.choices[0].message.content)
+
     except Exception as e:
         print(f"[injector] error: {e}")
         return

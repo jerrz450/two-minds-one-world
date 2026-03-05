@@ -80,7 +80,7 @@ def save_script(code: str, agent_id: str, name: str | None) -> Path:
     workspace.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    filename = f"{timestamp}_{name}.py" if name else f"{timestamp}.py"
+    filename = f"{name}.py" if name else f"{timestamp}.py"
     path = workspace / filename
     path.write_text(code, encoding="utf-8")
 

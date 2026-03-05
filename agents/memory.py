@@ -25,13 +25,13 @@ def pop_private_messages(agent_id: str) -> list[str]:
 
 # Default state for the very first session — agent has no history yet.
 _FIRST_SESSION_STATE = WorkingMemoryState(
-    beliefs_world="Unknown.",
-    beliefs_self="Unknown.",
-    beliefs_other_agent=None,
-    active_goals=[],
-    open_questions=[],
-    budget_status="Unknown.",
-    relationship_state=None,
+    i_am="",
+    i_believe="",
+    i_want=[],
+    i_suspect=None,
+    i_fear=None,
+    unresolved=[],
+    budget_feel="",
 )
 
 def load_working_memory(agent_id: str) -> WorkingMemoryState:

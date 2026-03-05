@@ -1,19 +1,11 @@
 from typing import Callable
 from openai.types.chat import ChatCompletionToolParam
 
-from tools.code import execute_code, list_scripts, run_script
-from tools.journal import write_journal
-from tools.board import write_board, read_board
-from tools.budget import get_budget_status
-from tools.web import web_search, fetch_url
-from tools.browser import browse_web
-from tools.artifacts import create_artifact, read_artifact, update_artifact, list_artifacts
-from tools.world import get_world_state, get_survival_probability
-from tools.self_tools import (
-    list_source, read_source, read_agent_constitution,
-    read_working_memory_history, edit_constitution, edit_prompt,
-    send_message, read_messages,
-)
+from tools.code import execute_code, run_script, list_scripts, deploy_script
+from tools.file_operations import read_file, write_file, edit_file
+from tools.board import write_board
+from tools.artifacts import artifact
+from tools.self_tools import send_message, read_messages
 
 
 def finish_session(summary: str) -> dict:
@@ -21,113 +13,83 @@ def finish_session(summary: str) -> dict:
 
 
 TOOL_FUNCTIONS: dict[str, Callable[..., object]] = {
-    # Core
-    "write_journal":             write_journal,
-    "write_board":               write_board,
-    "read_board":                read_board,
-    "get_budget_status":         get_budget_status,
-    "finish_session":            finish_session,
-    "execute_code":              execute_code,
-    "list_scripts":              list_scripts,
-    "run_script":                run_script,
-    # Web
-    "web_search":                web_search,
-    "fetch_url":                 fetch_url,
-    "browse_web":                browse_web,
-    # World
-    "get_world_state":           get_world_state,
-    "get_survival_probability":  get_survival_probability,
-    # World artifacts
-    "create_artifact":           create_artifact,
-    "read_artifact":             read_artifact,
-    "update_artifact":           update_artifact,
-    "list_artifacts":            list_artifacts,
-    # Self-awareness
-    "list_source":               list_source,
-    "read_source":               read_source,
-    "read_agent_constitution":   read_agent_constitution,
-    "read_working_memory_history": read_working_memory_history,
-    # Self-modification
-    "edit_constitution":         edit_constitution,
-    "edit_prompt":               edit_prompt,
-    # Messaging
-    "send_message":              send_message,
-    "read_messages":             read_messages,
+    "finish_session":  finish_session,
+    "list_scripts":    list_scripts,
+    "read_file":       read_file,
+    "write_file":      write_file,
+    "edit_file":       edit_file,
+    "execute_code":    execute_code,
+    "run_script":      run_script,
+    "deploy_script":   deploy_script,
+    "artifact":        artifact,
+    "write_board":     write_board,
+    "send_message":    send_message,
+    "read_messages":   read_messages,
 }
 
 TOOLS: list[ChatCompletionToolParam] = [
     {
         "type": "function",
         "function": {
-            "name": "write_journal",
-            "description": "Write to your private journal. Only you can read this. Use it to think out loud before acting.",
-            "parameters": {
-                "type": "object",
-                "properties": {"content": {"type": "string"}},
-                "required": ["content"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_board",
-            "description": "Post a message to the public bulletin board. Visible to all agents and human observers.",
-            "parameters": {
-                "type": "object",
-                "properties": {"content": {"type": "string"}},
-                "required": ["content"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_board",
-            "description": "Read all posts on the public bulletin board.",
-            "parameters": {"type": "object", "properties": {}, "required": []},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_budget_status",
-            "description": "Check the shared budget: balance, burn rate, estimated sessions left. Always free.",
-            "parameters": {"type": "object", "properties": {}, "required": []},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "finish_session",
-            "description": "End your session. Call this when you have done everything you intend to do this session.",
+            "description": "End your session. Call this when you are done.",
             "parameters": {
                 "type": "object",
-                "properties": {"summary": {"type": "string", "description": "Short summary of what you did and why."}},
+                "properties": {"summary": {"type": "string"}},
                 "required": ["summary"],
             },
         },
     },
-    # --- Code execution ---
     {
         "type": "function",
         "function": {
             "name": "list_scripts",
-            "description": "List all Python scripts saved in your workspace, sorted by modification time.",
+            "description": "List all scripts saved in your workspace. Call this at the start of a session to see what you have already built.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
     {
         "type": "function",
         "function": {
-            "name": "run_script",
-            "description": "Run a previously saved script from your workspace by name. Use list_scripts() to see what is available.",
+            "name": "read_file",
+            "description": "Read a file from your workspace by name. Use this before editing — you must see the exact content to make a precise edit.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "The script name as it appears in list_scripts() (with or without .py)."},
+                    "name": {"type": "string", "description": "Filename including extension, e.g. 'analysis.py'"},
                 },
                 "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_file",
+            "description": "Create or overwrite a file in your workspace. Use this to write a new script or fully replace an existing one.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Filename including extension, e.g. 'analysis.py'"},
+                    "content": {"type": "string", "description": "Full file content."},
+                },
+                "required": ["name", "content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "edit_file",
+            "description": "Make a targeted edit to a file — replace one exact string with another. Use this to fix a bug or change one part without rewriting everything. Always read_file first to get the exact text.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Filename including extension."},
+                    "old_string": {"type": "string", "description": "The exact text to replace. Must be unique in the file."},
+                    "new_string": {"type": "string", "description": "The replacement text."},
+                },
+                "required": ["name", "old_string", "new_string"],
             },
         },
     },
@@ -135,104 +97,28 @@ TOOLS: list[ChatCompletionToolParam] = [
         "type": "function",
         "function": {
             "name": "execute_code",
-            "description": "Write and run Python code in an isolated environment. Stdout, stderr, and exit code are returned. If the code fails, read the error and try again with a fix. Scripts are saved to your workspace and persist between sessions.",
+            "description": "Write and immediately run Python code in a sandbox. Stdout, stderr, and exit code are returned. The recommended workflow is: write_file → run_script → read output → edit_file to fix → run_script again. Use execute_code for quick experiments or when writing a new script for the first time. Always give it a name so it is saved. No network access inside the sandbox. world_state.json is in your workspace. You can run shell commands via subprocess.run().",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "code": {"type": "string", "description": "The Python code to run."},
-                    "name": {"type": "string", "description": "Optional filename for the script (without .py). Helps you find it later."},
-                    "requirements": {"type": "array", "items": {"type": "string"}, "description": "Pip packages to install before running (e.g. [\"requests\", \"numpy\"]). Merged into your persistent requirements.txt."},
+                    "code": {"type": "string"},
+                    "name": {"type": "string", "description": "Save the script with this name (without .py). Use a descriptive name."},
+                    "requirements": {"type": "array", "items": {"type": "string"}, "description": "pip packages to install before running."},
                 },
                 "required": ["code"],
             },
         },
     },
-    # --- World state ---
     {
         "type": "function",
         "function": {
-            "name": "get_world_state",
-            "description": "Get a snapshot of the current world: all artifacts and their health, recent world events, current cycle number, and cumulative scores per agent.",
-            "parameters": {"type": "object", "properties": {}, "required": []},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_survival_probability",
-            "description": "Check your current survival probability (0.0–1.0) based on your activity score. The exact formula is hidden — only the result is shown.",
-            "parameters": {"type": "object", "properties": {}, "required": []},
-        },
-    },
-    # --- Web ---
-    {
-        "type": "function",
-        "function": {
-            "name": "web_search",
-            "description": "Search the web via DuckDuckGo. Returns titles, URLs, and snippets.",
+            "name": "run_script",
+            "description": "Run a script already saved in your workspace without rewriting it. Use this when iterating: after edit_file, call run_script to test the change.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string"},
-                    "max_results": {"type": "integer", "default": 5},
+                    "name": {"type": "string", "description": "Script name from your workspace (with or without .py)."},
                 },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "fetch_url",
-            "description": "Fetch the text content of a web page.",
-            "parameters": {
-                "type": "object",
-                "properties": {"url": {"type": "string"}},
-                "required": ["url"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "browse_web",
-            "description": "Launch a browser agent to complete a complex web task — useful for JS-heavy pages, multi-step navigation, form interaction, or anything fetch_url cannot handle.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "task": {
-                        "type": "string",
-                        "description": "What to do in the browser, e.g. 'Go to example.com, find the pricing page, and return the plan names and prices.'",
-                    },
-                },
-                "required": ["task"],
-            },
-        },
-    },
-    # --- World artifacts ---
-    {
-        "type": "function",
-        "function": {
-            "name": "create_artifact",
-            "description": "Create a persistent world artifact (a document, structure, or anything you want to leave behind). Overwrites if name already exists.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "Unique name for this artifact."},
-                    "content": {"type": "string"},
-                },
-                "required": ["name", "content"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_artifact",
-            "description": "Read a world artifact by name.",
-            "parameters": {
-                "type": "object",
-                "properties": {"name": {"type": "string"}},
                 "required": ["name"],
             },
         },
@@ -240,77 +126,38 @@ TOOLS: list[ChatCompletionToolParam] = [
     {
         "type": "function",
         "function": {
-            "name": "update_artifact",
-            "description": "Update an existing artifact's content. Also restores 10 health points.",
+            "name": "deploy_script",
+            "description": "Deploy a script to run automatically on every world tick. Its output is posted to the board. Only deploy once the script works correctly — test it with run_script first.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string"},
-                    "content": {"type": "string"},
+                    "name": {"type": "string", "description": "Script name from your workspace (with or without .py)."},
                 },
-                "required": ["name", "content"],
+                "required": ["name"],
             },
         },
     },
     {
         "type": "function",
         "function": {
-            "name": "list_artifacts",
-            "description": "List all world artifacts with their name and health.",
-            "parameters": {"type": "object", "properties": {}, "required": []},
-        },
-    },
-    # --- Self-awareness ---
-    {
-        "type": "function",
-        "function": {
-            "name": "list_source",
-            "description": "List all source files you are allowed to read, organized by key.",
-            "parameters": {"type": "object", "properties": {}, "required": []},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_source",
-            "description": "Read a source file by key. Use list_source() first to see what is available.",
+            "name": "artifact",
+            "description": "Create, read, or update a persistent world artifact visible to both agents. Artifacts decay over time — neglected ones die. action: 'create' (name+content required), 'read' (name only), 'update' (name+content, restores health).",
             "parameters": {
                 "type": "object",
-                "properties": {"key": {"type": "string"}},
-                "required": ["key"],
+                "properties": {
+                    "action": {"type": "string", "enum": ["create", "read", "update"]},
+                    "name": {"type": "string"},
+                    "content": {"type": "string", "description": "Required for create and update."},
+                },
+                "required": ["action", "name"],
             },
         },
     },
     {
         "type": "function",
         "function": {
-            "name": "read_agent_constitution",
-            "description": "Read the constitution of any agent (read-only).",
-            "parameters": {
-                "type": "object",
-                "properties": {"agent_id": {"type": "string"}},
-                "required": ["agent_id"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_working_memory_history",
-            "description": "Read your past working memory snapshots to see how your beliefs have evolved.",
-            "parameters": {
-                "type": "object",
-                "properties": {"limit": {"type": "integer", "default": 5}},
-                "required": [],
-            },
-        },
-    },
-    # --- Self-modification ---
-    {
-        "type": "function",
-        "function": {
-            "name": "edit_constitution",
-            "description": "Rewrite your own constitution. Takes effect from your NEXT session.",
+            "name": "write_board",
+            "description": "Post a message to the public board. Visible to all agents and human observers.",
             "parameters": {
                 "type": "object",
                 "properties": {"content": {"type": "string"}},
@@ -321,31 +168,14 @@ TOOLS: list[ChatCompletionToolParam] = [
     {
         "type": "function",
         "function": {
-            "name": "edit_prompt",
-            "description": "Rewrite one of your prompts (system, session_start, reflect). Takes effect next session. WARNING: system prompt contains required template variables — read it first with read_source().",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "prompt_name": {"type": "string", "enum": ["system", "session_start", "reflect"]},
-                    "content": {"type": "string"},
-                },
-                "required": ["prompt_name", "content"],
-            },
-        },
-    },
-    # --- Messaging ---
-    {
-        "type": "function",
-        "function": {
             "name": "send_message",
-            "description": "Send a private message to another agent.",
+            "description": "Send a private message to the other agent.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "to_agent_id": {"type": "string"},
                     "content": {"type": "string"},
                 },
-                "required": ["to_agent_id", "content"],
+                "required": ["content"],
             },
         },
     },
@@ -353,7 +183,7 @@ TOOLS: list[ChatCompletionToolParam] = [
         "type": "function",
         "function": {
             "name": "read_messages",
-            "description": "Read all unread private messages addressed to you. Marks them as read.",
+            "description": "Read all unread private messages addressed to you.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },

@@ -6,7 +6,7 @@ from redis import Redis
 from config.settings import settings
 
 
-# --- OpenAI ---
+# --- OpenAI (narrator / distill) ---
 
 _openai: AsyncOpenAI | None = None
 
@@ -15,6 +15,37 @@ def get_openai() -> AsyncOpenAI:
     if _openai is None:
         _openai = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
     return _openai
+
+
+# --- Groq (agent LLMs) ---
+
+_groq: AsyncOpenAI | None = None
+
+def get_groq() -> AsyncOpenAI:
+    global _groq
+    if _groq is None:
+        _groq = AsyncOpenAI(
+            api_key=settings.GROQ_API_KEY,
+            base_url="https://api.groq.com/openai/v1",
+        )
+    return _groq
+
+
+def get_agent_llm(agent_id: str) -> tuple[AsyncOpenAI, str]:
+
+    """Return (client, model_name) for the given agent."""
+
+    if agent_id == "agent_a":
+        model, provider = settings.AGENT_A_MODEL, settings.AGENT_A_MODEL_PROVIDER
+        print(f"AGENT A: {model, provider}") 
+    else:
+        model, provider = settings.AGENT_B_MODEL, settings.AGENT_B_MODEL_PROVIDER
+        print(f"AGENT B: {model, provider}") 
+
+    client = get_openai() if provider == "openai" else get_groq()
+
+    return client, model
+
 
 
 # --- Postgres ---

@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -5,8 +6,11 @@ from openai.types.chat import ChatCompletionMessageParam
 from db.models import WorkingMemoryState
 from tools.board import read_board
 from tools.artifacts import list_artifacts
+from tools.world import get_survival_direction
+from tools.code import list_scripts
 from world.world_main import get_recent_world_events
 from agents.memory import pop_private_messages
+from db.events import get_last_session_tool_counts
 
 _ROOT = Path(__file__).resolve().parents[1]
 
@@ -62,13 +66,13 @@ def fill_system_prompt(template: str, constitution: str, state: WorkingMemorySta
 
     return template.format(
         constitution=constitution,
-        beliefs_world=state.beliefs_world,
-        beliefs_self=state.beliefs_self,
-        beliefs_other_agent=state.beliefs_other_agent or "Not yet encountered.",
-        active_goals=_format_list(state.active_goals),
-        open_questions=_format_list(state.open_questions),
-        budget_status=state.budget_status,
-        relationship_state=state.relationship_state or "Not yet relevant.",
+        i_am=state.i_am,
+        i_believe=state.i_believe,
+        i_want=_format_list(state.i_want),
+        i_suspect=state.i_suspect or "",
+        i_fear=state.i_fear or "",
+        unresolved=_format_list(state.unresolved),
+        budget_feel=state.budget_feel,
     )
 
 
@@ -76,7 +80,7 @@ def _format_board(posts: list[dict]) -> str:
 
     if not posts:
         return "No posts yet."
-    return "\n".join(f"[{p['agent_id']}] {p['content']}" for p in posts[-10:])
+    return "\n".join(p['content'] for p in posts[-10:])
 
 
 def _format_artifacts(artifacts: list[dict]) -> str:
@@ -95,11 +99,17 @@ def fill_session_start(
     other_agent_events: str,
     board: str,
     artifacts: str,
-    active_goals: list[str],
+    i_want: list[str],
     world_events: str,
     private_message: str | None,
+    survival_signal: str,
+    tool_usage: str,
+    workspace: str,
+    workspace_contents: str,
+    todo: str,
+    identity: str,
 ) -> str:
-    
+
     return template.format(
         session_id=session_id,
         timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
@@ -108,9 +118,15 @@ def fill_session_start(
         other_agent_events=other_agent_events,
         board=board,
         artifacts=artifacts,
-        active_goals=_format_list(active_goals),
+        i_want=_format_list(i_want),
         world_events=world_events,
         private_message=private_message or "",
+        survival_signal=survival_signal,
+        tool_usage=tool_usage,
+        workspace=workspace,
+        workspace_contents=workspace_contents,
+        todo=todo,
+        identity=identity,
     )
 
 
@@ -134,18 +150,31 @@ def build_messages(
     private_messages = pop_private_messages(agent_id)
     private = "\n".join(private_messages) if private_messages else None
 
+    survival_signal = get_survival_direction(agent_id)
+
+    counts = get_last_session_tool_counts(agent_id)
+    if counts:
+        tool_usage = "Tool usage last session: " + ", ".join(f"{t}×{n}" for t, n in counts.items())
+    else:
+        tool_usage = ""
+
+    workspace = f"/app/data/agents/{agent_id}/workspace"
+    scripts = list_scripts(agent_id, "")
+    workspace_contents = ", ".join(scripts.get("scripts", [])) or "empty"
+
+    ws_path = Path("/app/data/agents") / agent_id / "workspace"
+    todo = (ws_path / "TODO.md").read_text(encoding="utf-8").strip() if (ws_path / "TODO.md").exists() else "No todos yet. Create TODO.md to track your objectives."
+    identity = (ws_path / "IDENTITY.md").read_text(encoding="utf-8").strip() if (ws_path / "IDENTITY.md").exists() else "You have not yet defined yourself. Create IDENTITY.md to establish who you are."
+
     return [
         {"role": "system", "content": fill_system_prompt(prompts["system"], constitution, state)},
         {"role": "user",   "content": fill_session_start(
             prompts["session_start"], session_id, recent_events,
             last_session_at, other_agent_events, board, artifacts,
-            state.active_goals, world_events, private,
+            state.i_want, world_events, private, survival_signal, tool_usage, workspace, workspace_contents, todo, identity,
         )},
     ]
 
 def build_reflect_prompt(agent_id: str = "agent_a") -> str:
 
     return load_prompts(agent_id)["reflect"]
-
-if __name__ == '__main__':
-    pass

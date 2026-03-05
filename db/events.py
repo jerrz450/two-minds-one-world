@@ -49,6 +49,34 @@ def get_recent_events(agent_id: str, limit: int = 50) -> list[Event]:
             return [Event(**row) for row in cur.fetchall()]
 
 
+def get_last_session_tool_counts(agent_id: str) -> dict[str, int]:
+    """Return tool call counts from the most recent completed session."""
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT session_id FROM events
+                WHERE agent_id = %s AND event_type = 'tool_call'
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (agent_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return {}
+            cur.execute(
+                """
+                SELECT payload->>'tool' AS tool, COUNT(*) AS count
+                FROM events
+                WHERE agent_id = %s AND session_id = %s AND event_type = 'tool_call'
+                GROUP BY payload->>'tool'
+                ORDER BY count DESC
+                """,
+                (agent_id, row["session_id"]),
+            )
+            return {r["tool"]: int(r["count"]) for r in cur.fetchall()}
+
+
 def get_session_events(session_id: str) -> list[Event]:
 
     """Return all events for a specific session, in order. Used for replay."""

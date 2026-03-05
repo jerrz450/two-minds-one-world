@@ -54,11 +54,13 @@ services:
     command: celery -A celery_app worker --loglevel=info -Q agent_a --concurrency=1
     environment:
       AGENT_ID: agent_a
-      SESSION_INTERVAL: ${SESSION_INTERVAL:-120}
+      SESSION_INTERVAL: ${SESSION_INTERVAL:-1800}
       DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
       REDIS_URL: redis://redis:6379/0
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      LLM_MODEL: ${LLM_MODEL:-gpt-4.1}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      AGENT_A_MODEL: ${AGENT_A_MODEL:-moonshotai/kimi-k2-instruct}
+      AGENT_B_MODEL: ${AGENT_B_MODEL:-qwen/qwen3-32b}
     volumes:
       - ./data:/app/data
     depends_on:
@@ -77,11 +79,13 @@ services:
     command: celery -A celery_app worker --loglevel=info -Q agent_b --concurrency=1
     environment:
       AGENT_ID: agent_b
-      SESSION_INTERVAL: ${SESSION_INTERVAL:-120}
+      SESSION_INTERVAL: ${SESSION_INTERVAL:-1800}
       DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
       REDIS_URL: redis://redis:6379/0
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      LLM_MODEL: ${LLM_MODEL:-gpt-4.1}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      AGENT_A_MODEL: ${AGENT_A_MODEL:-moonshotai/kimi-k2-instruct}
+      AGENT_B_MODEL: ${AGENT_B_MODEL:-qwen/qwen3-32b}
     volumes:
       - ./data:/app/data
     depends_on:

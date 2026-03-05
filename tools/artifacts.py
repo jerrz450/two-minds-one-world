@@ -64,6 +64,16 @@ def update_artifact(name: str, content: str) -> dict:
     return {"status": "updated"}
 
 
+def artifact(agent_id: str, session_id: str, action: str, name: str, content: str | None = None) -> dict:
+    if action == "create":
+        return create_artifact(name, content)
+    elif action == "read":
+        return read_artifact(name)
+    elif action == "update":
+        return update_artifact(name, content)
+    return {"error": "action must be 'create', 'read', or 'update'"}
+
+
 def list_artifacts() -> list[dict]:
 
     """List all world artifacts with name, health, and creation time."""

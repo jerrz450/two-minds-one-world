@@ -3,6 +3,7 @@ from world.god.artifacts import decay_artifacts
 from world.god.scores import score_last_cycle_actions
 from world.god.events import generate_world_events
 from world.god.injector import inject_asymmetric_messages
+from world.god.runner import run_deployed_scripts
 
 def run_tick() -> None:
 
@@ -46,5 +47,6 @@ def run_tick() -> None:
         "description": f"World tick {cycle} complete. {len(dead)} artifact(s) lost.",
     })
 
+    events.extend(run_deployed_scripts(cycle))
     write_world_events_batch(events)
     inject_asymmetric_messages(cycle)

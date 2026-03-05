@@ -36,13 +36,13 @@ class WorkingMemoryState(BaseModel):
 
     """The structured content inside working_memory.state JSONB column."""
 
-    beliefs_world: str
-    beliefs_self: str
-    beliefs_other_agent: str | None
-    active_goals: list[str]
-    open_questions: list[str]
-    budget_status: str
-    relationship_state: str | None
+    i_am: str
+    i_believe: str
+    i_want: list[str]
+    i_suspect: str | None
+    i_fear: str | None
+    unresolved: list[str]
+    budget_feel: str
 
 
 class WorkingMemory(BaseModel):

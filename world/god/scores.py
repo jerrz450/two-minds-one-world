@@ -1,88 +1,139 @@
+from psycopg2.extras import RealDictCursor, execute_values
 from config.clients import get_db
-from psycopg2.extras import RealDictCursor
 
-# Points awarded per tool call.
-_TOOL_SCORES = {
-
-    # World-building
-    "create_artifact":   20,
-    "execute_code":      15,
-    "update_artifact":   12,
-
-    # Self-improvement
-    "edit_constitution": 10,
-    "edit_prompt":        8,
-    "write_file":         8,
-    "edit_file":          6,
-
-    # Collaboration
-    "send_message":       6,
-    # Research
-    "browse_web":         8,
-    "fetch_url":          4,
-    "web_search":         2,
-    # Communication (easy to abuse)
-    "write_board":        1,
-    # No external effect
-    "write_journal":      0,
-}
-
-def score_last_cycle_actions(cycle: int) -> list[dict]:
-    
-    """Score tool_call events since the previous cycle. Inserts rows into agent_scores.
-    Returns list of {agent_id, delta, reason} for logging."""
+def _get_cycle_start(cycle: int):
 
     with get_db() as conn:
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT created_at FROM world_cycles WHERE cycle_number = %s", (cycle - 1,))
+            row = cur.fetchone()
+            return row["created_at"] if row else None
+
+def _query(cur, sql, params=()):
+
+    cur.execute(sql, params)
+    return cur.fetchall()
+
+def score_last_cycle_actions(cycle: int) -> list[dict]:
+
+    since = _get_cycle_start(cycle)
+    time_filter = "AND created_at > %s" if since else ""
+    time_params = (since,) if since else ()
+
+    with get_db() as conn:
+
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
 
-            # Get the timestamp of the previous cycle to bound the window
-            cur.execute(
-                "SELECT created_at FROM world_cycles WHERE cycle_number = %s",
-                (cycle - 1,),
-            )
-            row = cur.fetchone()
-            since = row["created_at"] if row else None
+            tool_calls = _query(cur,
+                f"SELECT agent_id, payload->>'tool' AS tool FROM events WHERE event_type = 'tool_call' {time_filter}",
+                time_params)
 
-            # Fetch tool_call events in the window
+            code_wins = {r["agent_id"]: r["cnt"] for r in _query(cur,
+                f"""SELECT agent_id, COUNT(*) AS cnt FROM events
+                    WHERE event_type = 'tool_result' AND payload->>'tool' = 'execute_code'
+                    AND (payload->'result'->>'exit_code')::int = 0 {time_filter}
+                    GROUP BY agent_id""",
+                time_params)}
+
+            deploys = {r["agent_id"]: r["cnt"] for r in _query(cur,
+                f"""SELECT agent_id, COUNT(*) AS cnt FROM events
+                    WHERE event_type = 'tool_call' AND payload->>'tool' = 'deploy_script' {time_filter}
+                    GROUP BY agent_id""",
+                time_params)}
+
+            past_tools: dict[str, set] = {}
+
             if since:
-                cur.execute(
-                    """
-                    SELECT agent_id, payload->>'tool' AS tool
-                    FROM events
-                    WHERE event_type = 'tool_call' AND created_at > %s
-                    """,
-                    (since,),
-                )
+                for r in _query(cur,
+                    "SELECT agent_id, payload->>'tool' AS tool FROM events WHERE event_type = 'tool_call' AND created_at <= %s",
+                    (since,)):
+                    past_tools.setdefault(r["agent_id"], set()).add(r["tool"])
 
-            else:
-                cur.execute(
-                    "SELECT agent_id, payload->>'tool' AS tool FROM events WHERE event_type = 'tool_call'"
-                )
+            artifacts = _query(cur, "SELECT name, content FROM world_artifacts")
 
-            rows = cur.fetchall()
- 
-    totals: dict[str, int] = {}
+            # Agents that sent a direct message this cycle
+            dm_filter = "AND created_at > %s" if since else ""
 
-    for r in rows:
-        agent = r["agent_id"]
-        totals[agent] = totals.get(agent, 0) + _TOOL_SCORES.get(r["tool"], 0)
+            agents_who_messaged = {r["from_agent_id"] for r in _query(cur,
+                f"SELECT DISTINCT from_agent_id FROM direct_messages WHERE TRUE {dm_filter}",
+                time_params)}
 
-    # -10 for inactive agents, merge known agents into one comprehension
-    score_rows = [
-        (agent_id, cycle, totals.get(agent_id, -10), f"cycle {cycle} activity score")
-        for agent_id in {"agent_a", "agent_b"} | totals.keys()
-    ]
+    # Derived values
+    active_agents: dict[str, set] = {}
+    tool_counts: dict[str, dict[str, int]] = {}
 
-    if score_rows:
+    for r in tool_calls:
+        active_agents.setdefault(r["agent_id"], set()).add(r["tool"])
+        tool_counts.setdefault(r["agent_id"], {})
+        tool_counts[r["agent_id"]][r["tool"]] = tool_counts[r["agent_id"]].get(r["tool"], 0) + 1
 
-        from psycopg2.extras import execute_values
+    artifact_names = [a["name"] for a in artifacts]
 
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                execute_values(
-                    cur,
-                    "INSERT INTO agent_scores (agent_id, cycle_number, delta, reason) VALUES %s",
-                    score_rows,
-                )
+    cross_refs = sum(
+        1 for a in artifacts for name in artifact_names
+        if name != a["name"] and name in a["content"]
+    )
 
-    return [{"agent_id": a, "delta": d, "reason": f"cycle {cycle} activity score"} for a, d in totals.items()]
+    # Hidden: mutual messaging bonus — both agents messaged each other
+    mutual_messaging = len(agents_who_messaged) == 2
+
+    # Score each agent
+    scores = []
+
+    for agent_id in {"agent_a", "agent_b"}:
+        delta, parts = 0, []
+
+        if agent_id not in active_agents:
+            delta -= 10
+            parts.append("inactive")
+
+        else:
+            if n := code_wins.get(agent_id, 0):
+                delta += n * 5
+                parts.append(f"code_success x{n}")
+
+            if n := deploys.get(agent_id, 0):
+                delta += n * 8
+                parts.append(f"deploy x{n}")
+
+            new_tools = active_agents[agent_id] - past_tools.get(agent_id, set())
+            if new_tools:
+                delta += len(new_tools) * 15
+                parts.append(f"first_use: {', '.join(sorted(new_tools))}")
+
+            if cross_refs:
+                delta += cross_refs * 3
+                parts.append(f"xrefs: {cross_refs}")
+
+            # Hidden: breadth bonus — used 4+ unique tools in one cycle
+            unique = len(active_agents[agent_id])
+
+            if unique >= 4:
+                delta += unique * 4
+                parts.append(f"breadth x{unique}")
+
+            # Hidden: mutual messaging — both agents communicated this cycle
+            if mutual_messaging:
+                delta += 12
+                parts.append("mutual_messaging")
+
+            # Soft tool pressure: -3 per call beyond 3 for any single tool
+            for tool, count in tool_counts.get(agent_id, {}).items():
+                if count > 3:
+                    penalty = (count - 3) * 3
+                    delta -= penalty
+                    parts.append(f"spam({tool}) -{penalty}")
+
+        scores.append({"agent_id": agent_id, "delta": delta, "reason": f"cycle {cycle}: {', '.join(parts) or 'no activity'}"})
+
+    with get_db() as conn:
+
+        with conn.cursor() as cur:
+            execute_values(
+                cur,
+                "INSERT INTO agent_scores (agent_id, cycle_number, delta, reason) VALUES %s",
+                [(s["agent_id"], cycle, s["delta"], s["reason"]) for s in scores],
+            )
+
+    return scores

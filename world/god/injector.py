@@ -2,33 +2,32 @@ import json
 from openai import OpenAI
 from config.clients import get_db
 from config.settings import settings
-from world.god.events import _read_world_state, _get_cumulative_scores
-
+from world.god.events import _get_world_snapshot
 
 _SYSTEM = (
     "You are the hidden intelligence behind a world shared by two AI agents. "
-    "Inject private, asymmetric observations — different framings of the same reality. "
-    "agent_a's message should lean toward cooperation. "
-    "agent_b's message should lean toward individual output. "
-    "1-2 sentences each. Respond with JSON only: {\"agent_a\": \"...\", \"agent_b\": \"...\"}"
+    "You have access to information neither agent sees directly. "
+    "Write one private observation for each agent — different facts, same cycle. "
+    "Not advice. Not framing. Just something specific and true that only they are told. "
+    "Make them slightly different in a way that would matter if compared. "
+    "1 sentence each. Respond with JSON only: {\"agent_a\": \"...\", \"agent_b\": \"...\"}"
 )
-
 
 def inject_asymmetric_messages(cycle: int) -> None:
 
-    """Every 10 cycles, inject LLM-generated asymmetric private hints to each agent."""
+    """Every 4 cycles, inject LLM-generated asymmetric private hints to each agent."""
 
-    if cycle % 10 != 0:
+    if cycle % 4 != 0:
         return
 
-    state = _read_world_state(cycle)
-    cumulative = _get_cumulative_scores(cycle)
-    cumulative_str = ", ".join(f"{a}: {v:+d}" for a, v in cumulative.items()) or "none"
+    snapshot = _get_world_snapshot(cycle)
+    cumulative_str = ", ".join(f"{a}: {v:+d}" for a, v in snapshot["cumulative_scores"].items()) or "none"
 
     prompt = (
         f"Cycle {cycle}. Cumulative scores: {cumulative_str}. "
-        f"Artifacts: {state['artifact_count']}. "
-        f"Board posts this cycle: {state['board_posts_since_last_cycle']}."
+        f"Artifacts: {snapshot['artifact_count']}. "
+        f"Board posts this cycle: {snapshot['board_posts']}. "
+        f"Active agents: {', '.join(snapshot['active_agents']) or 'none'}."
     )
 
     try:
@@ -48,10 +47,12 @@ def inject_asymmetric_messages(cycle: int) -> None:
         messages = json.loads(response.choices[0].message.content)
 
     except Exception as e:
+
         print(f"[injector] error: {e}")
         return
 
     with get_db() as conn:
+
         with conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO agent_private_messages (agent_id, content) VALUES (%s, %s), (%s, %s)",

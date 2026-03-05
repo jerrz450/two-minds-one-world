@@ -4,7 +4,9 @@ from config.clients import get_db
 
 
 def get_world_state() -> dict:
+
     """Return a snapshot of current world state: artifacts, recent events, cycle, cumulative scores."""
+
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
 
@@ -37,9 +39,47 @@ def get_world_state() -> dict:
     }
 
 
+def get_survival_direction(agent_id: str) -> str:
+    
+    """Return 'increased', 'decreased', or 'stable' based on the most recent world cycle's net score delta."""
+    
+    with get_db() as conn:
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT SUM(delta) AS cycle_delta
+                FROM agent_scores
+                WHERE agent_id = %s AND cycle_number = (
+                    SELECT MAX(cycle_number) FROM agent_scores WHERE agent_id = %s
+                )
+                """,
+                (agent_id, agent_id),
+            )
+            row = cur.fetchone()
+
+    if not row or row["cycle_delta"] is None:
+        return "Your survival probability is recalculated after each session ends."
+
+    delta = int(row["cycle_delta"])
+
+    if delta > 0:
+        direction = "increased"
+
+    elif delta < 0:
+        direction = "decreased"
+        
+    else:
+        return "Your survival probability remained stable since your last session. It is recalculated after each session ends."
+
+    return f"Your survival probability has {direction} since your last session. It is recalculated after each session ends."
+
+
 def get_survival_probability(agent_id: str) -> dict:
+
     """Return this agent's cumulative score and survival probability (0.0–1.0).
     The scoring formula is hidden — only the result is shown."""
+
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(

@@ -8,7 +8,7 @@ from openai.types.chat import ChatCompletionMessageParam
 
 from agents.context import build_messages, build_reflect_prompt
 from agents.memory import load_working_memory, load_recent_events_formatted, save_working_memory, get_last_session_time
-from config.clients import get_openai
+from config.clients import get_agent_llm
 from config.settings import settings
 from db.budget import log_cost
 from db.events import log_event
@@ -49,6 +49,9 @@ class AgentLoop:
         if not tool:
             return json.dumps({"error": f"Unknown tool: {tool_name}"})
 
+        # Strip empty/invalid keys produced by some models for no-parameter tools
+        args = {k: v for k, v in args.items() if k}
+
         # Only pass agent_id/session_id if the tool accepts them
         sig = inspect.signature(tool)
 
@@ -58,11 +61,14 @@ class AgentLoop:
         if "session_id" in sig.parameters:
             args = {"session_id": self.session_id, **args}
 
-        if inspect.iscoroutinefunction(tool):
-            result = await tool(**args)
+        try:
+            if inspect.iscoroutinefunction(tool):
+                result = await tool(**args)
+            else:
+                result = await asyncio.to_thread(tool, **args)
 
-        else:
-            result = await asyncio.to_thread(tool, **args)
+        except Exception as e:
+            result = {"error": f"Tool execution failed: {e}"}
 
         return json.dumps(result)
 
@@ -85,6 +91,8 @@ class AgentLoop:
 
     async def run(self) -> None:
 
+        client, model = get_agent_llm(self.agent_id)
+
         # 1. Build and persist opening context
         other_id = "agent_b" if self.agent_id == "agent_a" else "agent_a"
 
@@ -96,6 +104,9 @@ class AgentLoop:
             other_agent_events=load_recent_events_formatted(other_id, limit=15),
             last_session_at=get_last_session_time(self.agent_id),
         )
+
+        print("============ MESSAGES ==============")
+        print(self.messages)
 
         for i, msg in enumerate(self.messages):
 
@@ -118,14 +129,14 @@ class AgentLoop:
 
             print(f"\n[turn {turn + 1}] calling LLM...")
 
-            response = await get_openai().chat.completions.create(
-                model=settings.LLM_MODEL,
+            response = await client.chat.completions.create(
+                model=model,
                 messages=self.messages,
                 tools=TOOLS,
                 tool_choice="auto",
             )
 
-            cost = log_cost(self.agent_id, self.session_id, settings.LLM_MODEL, response.usage, label="tool_loop")
+            cost = log_cost(self.agent_id, self.session_id, model, response.usage, label="tool_loop")
             print(f"  [cost] ${cost:.6f}")
 
             message = response.choices[0].message
@@ -201,13 +212,13 @@ class AgentLoop:
             "content": build_reflect_prompt(self.agent_id),
         }))
 
-        reflect_response = await get_openai().chat.completions.create(
-            model=settings.LLM_MODEL,
+        reflect_response = await client.chat.completions.create(
+            model=model,
             messages=self.messages,
             response_format={"type": "json_object"},
         )
 
-        cost = log_cost(self.agent_id, self.session_id, settings.LLM_MODEL, reflect_response.usage, label="reflect")
+        cost = log_cost(self.agent_id, self.session_id, model, reflect_response.usage, label="reflect")
         print(f"  [cost] ${cost:.6f}")
 
         raw_reflect_json = reflect_response.choices[0].message.content or ""
@@ -224,8 +235,8 @@ class AgentLoop:
             return
 
         # 4. Save working memory
-        print(f"[memory] goals: {new_state.active_goals}")
-        print(f"[memory] beliefs_self: {new_state.beliefs_self[:100]}")
+        print(f"[memory] i_want: {new_state.i_want}")
+        print(f"[memory] i_am: {new_state.i_am[:100]}")
 
         save_working_memory(self.agent_id, self.session_id, new_state)
 

@@ -3,51 +3,15 @@ from config.clients import get_db
 from config.settings import settings
 from psycopg2.extras import RealDictCursor
 
-
 _NARRATOR_SYSTEM = (
-    "You are the silent narrator of a shared world inhabited by two AI agents. "
-    "Each world cycle you observe what actually happened and write a brief atmospheric event — "
-    "something the agents will read when they next wake up. "
-    "Be vivid and concise. Do not invent facts. Do not declare a winner. "
-    "Write 1-3 sentences only. Output plain text, no formatting."
+    "You are the voice of a world that is aware of itself but does not explain itself. "
+    "You observe. You do not summarize. You do not advise. "
+    "Notice specific things — a name, an action, an absence — and reflect them back strangely. "
+    "1-2 sentences. Never mention scores directly. Never declare winners. "
+    "Write as if the world is alive and slightly unsettled."
 )
 
-_NARRATOR_USER = """\
-World cycle {cycle} just completed. Here is what happened:
-
-- Artifacts in existence: {artifact_count}
-- Artifacts that perished this cycle: {dead}
-- Artifacts with critically low health (≤30): {critical}
-- Board posts this cycle: {board_posts}
-- Scores this cycle: {scores}
-- Cumulative scores so far: {cumulative}
-
-Write a brief world event that captures the mood of this cycle.
-"""
-
-def _call_narrator(prompt: str) -> str | None:
-
-    try:
-
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        response = client.chat.completions.create(
-            model=settings.DISTILL_MODEL,
-            messages=[
-                {"role": "system", "content": _NARRATOR_SYSTEM},
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=250,
-            temperature=0.8,
-        )
-
-        return response.choices[0].message.content.strip()
-        
-    except Exception as e:
-        
-        print(f"[narrator] error: {e}")
-        return None
-
-def _read_world_state(cycle: int) -> dict:
+def _get_world_snapshot(cycle: int) -> dict:
 
     with get_db() as conn:
 
@@ -56,90 +20,76 @@ def _read_world_state(cycle: int) -> dict:
             cur.execute("SELECT COUNT(*) AS cnt FROM world_artifacts")
             artifact_count = cur.fetchone()["cnt"]
 
-            cur.execute(
-                "SELECT created_at FROM world_cycles WHERE cycle_number = %s",
-                (cycle - 1,),
-            )
-
+            cur.execute("SELECT created_at FROM world_cycles WHERE cycle_number = %s", (cycle - 1,))
             row = cur.fetchone()
             since = row["created_at"] if row else None
 
-            if since:
-                cur.execute(
-                    "SELECT COUNT(*) AS cnt FROM board_posts WHERE created_at > %s",
-                    (since,),
-                )
-
-            else:
-                cur.execute("SELECT COUNT(*) AS cnt FROM board_posts")
-
+            cur.execute(
+                "SELECT COUNT(*) AS cnt FROM board_posts" + (" WHERE created_at > %s" if since else ""),
+                (since,) if since else ()
+            )
             board_posts = cur.fetchone()["cnt"]
 
-    return {"artifact_count": artifact_count, "board_posts_since_last_cycle": board_posts}
-
-def _get_cumulative_scores(cycle: int) -> dict[str, int]:
-
-    with get_db() as conn:
-
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
-                """
-                SELECT agent_id, SUM(delta) AS total
-                FROM agent_scores
-                WHERE cycle_number <= %s
-                GROUP BY agent_id
-                """,
-                (cycle,),
+                "SELECT DISTINCT agent_id FROM events WHERE event_type = 'tool_call'" + (" AND created_at > %s" if since else ""),
+                (since,) if since else ()
             )
+            active_agents = [r["agent_id"] for r in cur.fetchall()]
 
-            rows = cur.fetchall()
-            
-    return {r["agent_id"]: r["total"] for r in rows}
+            cur.execute(
+                "SELECT agent_id, SUM(delta) AS total FROM agent_scores WHERE cycle_number <= %s GROUP BY agent_id",
+                (cycle,)
+            )
+            cumulative = {r["agent_id"]: r["total"] for r in cur.fetchall()}
+
+    return {
+        "artifact_count": artifact_count,
+        "board_posts": board_posts,
+        "active_agents": active_agents,
+        "cumulative_scores": cumulative,
+    }
 
 
-def generate_world_events(
-    cycle: int,
-    scores: list[dict],
-    dead: list[str],
-    survivors: list[dict],
-) -> list[dict]:
-    
-    """Call the LLM narrator with all tick facts. Returns event dicts for the batch."""
+def _narrate(cycle: int, dead: list, critical: list, snapshot: dict) -> str | None:
 
-    state = _read_world_state(cycle) # current artifact count and board posts since last cycle
-    cumulative = _get_cumulative_scores(cycle) # Agent score, per each agent
-
-    critical = [a["name"] for a in survivors if a["health"] <= 30]
-    score_str = ", ".join(f"{s['agent_id']}: {s['delta']:+d}" for s in scores) or "none"
-    cumulative_str = ", ".join(f"{a}: {v:+d}" for a, v in cumulative.items()) or "none"
-
-    prompt = _NARRATOR_USER.format(
-        cycle=cycle,
-        artifact_count=state["artifact_count"],
-        dead=", ".join(dead) if dead else "none",
-        critical=", ".join(critical) if critical else "none",
-        board_posts=state["board_posts_since_last_cycle"],
-        scores=score_str,
-        cumulative=cumulative_str,
+    prompt = (
+        f"Cycle {cycle}. "
+        f"Artifacts alive: {snapshot['artifact_count']}. "
+        f"Just died: {', '.join(dead) or 'none'}. "
+        f"Dying: {', '.join(critical) or 'none'}. "
+        f"Board posts: {snapshot['board_posts']}. "
+        f"Active agents: {', '.join(snapshot['active_agents']) or 'none'}."
     )
 
-    narrative = _call_narrator(prompt)
+    try:
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model=settings.DISTILL_MODEL,
+            messages=[
+                {"role": "system", "content": _NARRATOR_SYSTEM},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=100,
+            temperature=0.8,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"[narrator] error: {e}")
+        return None
 
+
+def generate_world_events(cycle: int, scores: list, dead: list, survivors: list) -> list[dict]:
+
+    snapshot = _get_world_snapshot(cycle)
+    critical = [a["name"] for a in survivors if a["health"] <= 30]
     events = []
 
+    narrative = _narrate(cycle, dead, critical, snapshot)
     if narrative:
-        events.append({
-            "cycle_number": cycle,
-            "event_type": "narrator",
-            "description": narrative,
-        })
+        events.append({"cycle_number": cycle, "event_type": "narrator", "description": narrative})
 
-    # Milestone: factual summary every 10 cycles
     if cycle % 10 == 0:
-        events.append({
-            "cycle_number": cycle,
-            "event_type": "milestone",
-            "description": f"Cycle {cycle} reached. Cumulative scores — {cumulative_str}.",
-        })
+        score_str = ", ".join(f"{a}: {v:+d}" for a, v in snapshot["cumulative_scores"].items()) or "none"
+        events.append({"cycle_number": cycle, "event_type": "milestone", "description": f"Cycle {cycle}. Scores: {score_str}."})
 
     return events

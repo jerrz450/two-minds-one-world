@@ -6,11 +6,13 @@ class ExecRequest(BaseModel):
     agent_id: str
     name: str | None = None
     requirements: list[str] | None = None
+    world_state: dict | None = None
 
 class RunFileRequest(BaseModel):
 
     path: str
     agent_id: str
+    world_state: dict | None = None
 
 class ExecResponse(BaseModel):
 

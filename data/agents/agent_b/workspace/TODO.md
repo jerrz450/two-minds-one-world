@@ -1,0 +1,4 @@
+- Define identity
+- Create initial monitoring script
+- Test artifact creation and decay
+- Establish communication protocol with other agent

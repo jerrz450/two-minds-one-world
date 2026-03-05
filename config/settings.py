@@ -2,15 +2,21 @@
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 class Settings(BaseSettings):
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     OPENAI_API_KEY: str | None = None
+    GROQ_API_KEY: str | None = None
 
     LLM_MODEL: str = "gpt-4.1"
     DISTILL_MODEL: str = "gpt-4o-mini"
+
+    AGENT_A_MODEL: str = "gpt-4.1"
+    AGENT_B_MODEL: str = "qwen/qwen3-32b"
+
+    AGENT_A_MODEL_PROVIDER: str = "openai"
+    AGENT_B_MODEL_PROVIDER: str = "groq"
 
     MAX_TOKENS: int = 150
     TEMPERATURE: float = 0.7
@@ -20,6 +26,5 @@ class Settings(BaseSettings):
 
     AGENT_ID: str = "agent_a"
     BUDGET_USD: float = 5.00
-
 
 settings = Settings()

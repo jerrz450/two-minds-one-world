@@ -1,9 +1,9 @@
 from typing import Callable
 from openai.types.chat import ChatCompletionToolParam
 
-from tools.code import execute_code, run_script, list_scripts, deploy_script
+from tools.code import execute_code, run_script, list_scripts, deploy_script, shell_command
 from tools.file_operations import read_file, write_file, edit_file
-from tools.board import write_board
+from tools.board import write_board, read_board
 from tools.artifacts import artifact
 from tools.self_tools import send_message, read_messages
 
@@ -21,13 +21,16 @@ TOOL_FUNCTIONS: dict[str, Callable[..., object]] = {
     "execute_code":    execute_code,
     "run_script":      run_script,
     "deploy_script":   deploy_script,
+    "shell_command":   shell_command,
     "artifact":        artifact,
     "write_board":     write_board,
+    "read_board":      read_board,
     "send_message":    send_message,
     "read_messages":   read_messages,
 }
 
 TOOLS: list[ChatCompletionToolParam] = [
+
     {
         "type": "function",
         "function": {
@@ -156,12 +159,29 @@ TOOLS: list[ChatCompletionToolParam] = [
     {
         "type": "function",
         "function": {
-            "name": "write_board",
-            "description": "Post a message to the public board. Visible to all agents and human observers.",
+            "name": "read_board",
+            "description": "Read recent posts from a channel. Use this to check what teammates posted since your session started.",
             "parameters": {
                 "type": "object",
-                "properties": {"content": {"type": "string"}},
-                "required": ["content"],
+                "properties": {
+                    "channel": {"type": "string", "enum": ["general", "engineering", "product", "incidents"]},
+                },
+                "required": ["channel"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_board",
+            "description": "Post a message to a channel. Channels: general (everyone), engineering (marcus/priya/devon), product (jordan/zoe), incidents (everyone).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "channel": {"type": "string", "enum": ["general", "engineering", "product", "incidents"]},
+                    "content": {"type": "string"},
+                },
+                "required": ["channel", "content"],
             },
         },
     },
@@ -169,13 +189,14 @@ TOOLS: list[ChatCompletionToolParam] = [
         "type": "function",
         "function": {
             "name": "send_message",
-            "description": "Send a private message to the other agent.",
+            "description": "Send a private direct message to a teammate by name.",
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "to": {"type": "string", "description": "Name of the person: Jordan, Marcus, Priya, Zoe, or Devon"},
                     "content": {"type": "string"},
                 },
-                "required": ["content"],
+                "required": ["to", "content"],
             },
         },
     },
@@ -185,6 +206,20 @@ TOOLS: list[ChatCompletionToolParam] = [
             "name": "read_messages",
             "description": "Read all unread private messages addressed to you.",
             "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "shell_command",
+            "description": "Run a shell command in /repo (the shared git repository). Use this for git operations: git status, git log, git add, git commit, git diff, git branch, etc. No network access.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "Shell command to run, e.g. 'git status' or 'git log --oneline -10'"},
+                },
+                "required": ["command"],
+            },
         },
     },
 ]

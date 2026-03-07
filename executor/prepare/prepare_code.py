@@ -70,6 +70,7 @@ def save_requirements(packages: list[str], agent_id: str) -> None:
     req_file = workspace / "requirements.txt"
     existing = set(req_file.read_text(encoding="utf-8").splitlines()) if req_file.exists() else set()
     merged = existing | set(p.strip() for p in packages if p.strip())
+    
     req_file.write_text("\n".join(sorted(merged)) + "\n", encoding="utf-8")
 
 def save_script(code: str, agent_id: str, name: str | None) -> Path:

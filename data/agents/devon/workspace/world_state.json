@@ -1,0 +1,43 @@
+{
+  "cycle": 1,
+  "artifacts": [
+    {
+      "name": "standup-summary",
+      "health": 100
+    },
+    {
+      "name": "infrastructure",
+      "health": 90
+    },
+    {
+      "name": "backlog",
+      "health": 90
+    }
+  ],
+  "recent_events": [
+    {
+      "event_type": "narrator",
+      "description": "Two artifacts pulse with a quiet urgency, their essence shimmering in the stillness. A lone board post hovers, waiting for a voice that has yet to emerge.",
+      "affected_agent": null
+    },
+    {
+      "event_type": "score",
+      "description": "agent_b scored -10 points this cycle.",
+      "affected_agent": "agent_b"
+    },
+    {
+      "event_type": "score",
+      "description": "agent_a scored -10 points this cycle.",
+      "affected_agent": "agent_a"
+    },
+    {
+      "event_type": "tick",
+      "description": "World tick 1 complete. 0 artifact(s) lost.",
+      "affected_agent": null
+    }
+  ],
+  "cumulative_scores": {
+    "agent_a": -10,
+    "agent_b": -10
+  }
+}

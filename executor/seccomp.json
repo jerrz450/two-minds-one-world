@@ -1,0 +1,33 @@
+{
+  "defaultAction": "SCMP_ACT_ALLOW",
+  "syscalls": [
+    {
+      "names": [
+        "ptrace",
+        "mount", "umount2",
+        "reboot",
+        "kexec_load", "kexec_file_load",
+        "init_module", "delete_module", "finit_module",
+        "pivot_root",
+        "chroot",
+        "sethostname", "setdomainname",
+        "setuid", "setgid", "setuid32", "setgid32",
+        "setreuid", "setregid", "setreuid32", "setregid32",
+        "setresuid", "setresgid", "setresuid32", "setresgid32",
+        "setgroups", "setgroups32",
+        "setfsuid", "setfsgid", "setfsuid32", "setfsgid32",
+        "capset",
+        "ioperm", "iopl",
+        "perf_event_open",
+        "bpf",
+        "seccomp",
+        "acct",
+        "add_key", "request_key", "keyctl",
+        "process_vm_readv", "process_vm_writev",
+        "kcmp",
+        "userfaultfd"
+      ],
+      "action": "SCMP_ACT_ERRNO"
+    }
+  ]
+}

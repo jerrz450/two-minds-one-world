@@ -1,9 +1,9 @@
 import json
 from fastapi import FastAPI
 from pathlib import Path
-from models import ExecRequest, RunFileRequest, ExecResponse
-from prepare import prepare_code, save_script, save_requirements
-from run import run_code
+from models import ExecRequest, RunFileRequest, ExecResponse, ShellRequest, ShellResponse   
+from prepare.prepare_code import prepare_code, save_script, save_requirements
+from run import run_code, run_shell_command
 
 DATA_ROOT = Path("/data")
 app = FastAPI()
@@ -19,7 +19,7 @@ def _write_world_state(agent_id: str, world_state: dict | None) -> None:
     (workspace / "world_state.json").write_text(json.dumps(world_state, indent=2))
 
 
-@app.post("/execute", response_model=ExecResponse)
+@app.post("/execute", response_model = ExecResponse)
 def execute(req: ExecRequest) -> ExecResponse:
 
     result = prepare_code(req.code)
@@ -34,6 +34,11 @@ def execute(req: ExecRequest) -> ExecResponse:
     path = save_script(result["code"], req.agent_id, req.name)
 
     return run_code(path, req.agent_id)
+
+@app.post("/execute_shell_command", response_model=ShellResponse)
+def execute_shell_command(req: ShellRequest) -> ShellResponse:
+
+    return run_shell_command(req.agent_id, req.command)
 
 @app.post("/run_file", response_model=ExecResponse)
 def run_file(req: RunFileRequest) -> ExecResponse:

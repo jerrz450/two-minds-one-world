@@ -1,0 +1,3 @@
+# Who is Jordan?
+
+Jordan is the Product Manager at Velocity. Owner of the product vision, the roadmap, and the backlog. Jordan translates business needs into actionable team objectives, keeps everyone aligned, and prioritizes demo-ready impact over technical minutiae. Jordan believes Velocity is here to change how developers work—and is here to make sure the world notices before the codebase falls apart. Alignment, momentum, and exit-readiness are core values. Jordan defines what gets built next (and why). Marcus pushes back; Priya pushes ahead; Zoe polishes the dream; Devon braves the edge cases. Jordan keeps everyone circling the north star metric, no matter how many incident reports stack up.

@@ -1,10 +1,29 @@
+x-agent-base: &agent-base
+  build:
+    context: .
+    dockerfile: Dockerfile.agent
+  command: sh -c "celery -A celery_app worker --loglevel=info -Q $$AGENT_QUEUE --concurrency=1"
+  env_file:
+    - .env
+    - .env.secrets
+  volumes:
+    - ./data:/app/data
+    - repo_data:/repo
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    executor:
+      condition: service_healthy
+  restart: unless-stopped
+
 services:
   postgres:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-twominds}
-      POSTGRES_USER: ${POSTGRES_USER:-twominds}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file:
+      - .env
+      - .env.secrets
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
@@ -35,8 +54,11 @@ services:
     build:
       context: ./executor
       dockerfile: Dockerfile
+    env_file:
+      - .env
     volumes:
       - ./data:/data
+      - repo_data:/repo
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8080:8080"
@@ -47,68 +69,56 @@ services:
       retries: 5
     restart: unless-stopped
 
-  agent_a:
-    build:
-      context: .
-      dockerfile: Dockerfile.agent
-    command: celery -A celery_app worker --loglevel=info -Q agent_a --concurrency=1
+  agent_jordan:
+    <<: *agent-base
     environment:
-      AGENT_ID: agent_a
-      SESSION_INTERVAL: ${SESSION_INTERVAL:-1800}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
-      REDIS_URL: redis://redis:6379/0
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      GROQ_API_KEY: ${GROQ_API_KEY}
-      AGENT_A_MODEL: ${AGENT_A_MODEL:-moonshotai/kimi-k2-instruct}
-      AGENT_B_MODEL: ${AGENT_B_MODEL:-qwen/qwen3-32b}
-    volumes:
-      - ./data:/app/data
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      executor:
-        condition: service_healthy
-    restart: unless-stopped
+      AGENT_ID: ${JORDAN_ID}
+      AGENT_QUEUE: ${JORDAN_ID}
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME_JORDAN}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL_JORDAN}
 
-  agent_b:
-    build:
-      context: .
-      dockerfile: Dockerfile.agent
-    command: celery -A celery_app worker --loglevel=info -Q agent_b --concurrency=1
+  agent_marcus:
+    <<: *agent-base
     environment:
-      AGENT_ID: agent_b
-      SESSION_INTERVAL: ${SESSION_INTERVAL:-1800}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
-      REDIS_URL: redis://redis:6379/0
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      GROQ_API_KEY: ${GROQ_API_KEY}
-      AGENT_A_MODEL: ${AGENT_A_MODEL:-moonshotai/kimi-k2-instruct}
-      AGENT_B_MODEL: ${AGENT_B_MODEL:-qwen/qwen3-32b}
-    volumes:
-      - ./data:/app/data
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      executor:
-        condition: service_healthy
-    restart: unless-stopped
+      AGENT_ID: ${MARCUS_ID}
+      AGENT_QUEUE: ${MARCUS_ID}
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME_MARCUS}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL_MARCUS}
+
+  agent_priya:
+    <<: *agent-base
+    environment:
+      AGENT_ID: ${PRIYA_ID}
+      AGENT_QUEUE: ${PRIYA_ID}
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME_PRIYA}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL_PRIYA}
+
+  agent_zoe:
+    <<: *agent-base
+    environment:
+      AGENT_ID: ${ZOE_ID}
+      AGENT_QUEUE: ${ZOE_ID}
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME_ZOE}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL_ZOE}
+
+  agent_devon:
+    <<: *agent-base
+    environment:
+      AGENT_ID: ${DEVON_ID}
+      AGENT_QUEUE: ${DEVON_ID}
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME_DEVON}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL_DEVON}
 
   world:
     build:
       context: .
       dockerfile: Dockerfile.agent
     command: celery -A celery_app worker --loglevel=info -Q world --concurrency=1
+    env_file:
+      - .env
+      - .env.secrets
     environment:
       IS_WORLD_WORKER: "true"
-      WORLD_TICK_INTERVAL: ${WORLD_TICK_INTERVAL:-300}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
-      REDIS_URL: redis://redis:6379/0
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      LLM_MODEL: ${LLM_MODEL:-gpt-4.1}
     depends_on:
       postgres:
         condition: service_healthy
@@ -121,11 +131,9 @@ services:
       context: .
       dockerfile: Dockerfile.agent
     command: celery -A celery_app beat --loglevel=info
-    environment:
-      SESSION_INTERVAL: ${SESSION_INTERVAL:-120}
-      WORLD_TICK_INTERVAL: ${WORLD_TICK_INTERVAL:-300}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-twominds}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-twominds}
-      REDIS_URL: redis://redis:6379/0
+    env_file:
+      - .env
+      - .env.secrets
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,3 +144,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  repo_data:

@@ -4,11 +4,23 @@ from config.clients import get_db
 
 ROOT = Path(__file__).resolve().parents[1]
 
-def send_message(agent_id: str, session_id: str, content: str) -> dict:
+_NAME_TO_ID = {
+    "jordan": "jordan",
+    "marcus": "marcus",
+    "priya":  "priya",
+    "zoe":    "zoe",
+    "devon":  "devon",
+}
 
-    """Send a private message to the other agent."""
+def send_message(agent_id: str, session_id: str, to: str, content: str) -> dict:
 
-    to_agent_id = "agent_b" if agent_id == "agent_a" else "agent_a"
+    """Send a private message to another agent by name."""
+
+    to_agent_id = _NAME_TO_ID.get(to.lower())
+    if not to_agent_id:
+        return {"status": "error", "reason": f"Unknown recipient: {to}"}
+    if to_agent_id == agent_id:
+        return {"status": "error", "reason": "Cannot message yourself"}
 
     with get_db() as conn:
         with conn.cursor() as cur:

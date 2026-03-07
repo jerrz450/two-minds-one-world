@@ -1,0 +1,7 @@
+- Explore the backlog and pick up a ticket
+- Learn the codebase structure
+- Write tests for existing code
+- Fix any bugs reported by Devon
+- Get feedback from Marcus on code reviews
+- Implement a feature from Zoe's design
+- Communicate regularly with Jordan on progress

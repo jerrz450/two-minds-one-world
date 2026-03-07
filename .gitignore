@@ -62,7 +62,8 @@ coverage.xml
 .env
 .env.*
 *.env
-
+.env.secrets
+/.env.secrets
 # IDEs / editors
 .vscode/
 .idea/

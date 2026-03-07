@@ -80,7 +80,14 @@ def _format_board(posts: list[dict]) -> str:
 
     if not posts:
         return "No posts yet."
-    return "\n".join(p['content'] for p in posts[-10:])
+    by_channel: dict[str, list[str]] = {}
+    for p in posts[-20:]:
+        by_channel.setdefault(p.get("channel", "general"), []).append(p["content"])
+    lines = []
+    for ch, contents in by_channel.items():
+        lines.append(f"#{ch}")
+        lines.extend(f"  {c}" for c in contents)
+    return "\n".join(lines)
 
 
 def _format_artifacts(artifacts: list[dict]) -> str:
@@ -144,7 +151,11 @@ def build_messages(
     prompts = load_prompts(agent_id)
     constitution = load_constitution(agent_id)
 
-    board = _format_board(read_board())
+    from tools.board import CHANNELS
+    all_posts = []
+    for ch in CHANNELS:
+        all_posts.extend(read_board(agent_id=agent_id, channel=ch))
+    board = _format_board(all_posts)
     artifacts = _format_artifacts(list_artifacts())
     world_events = "\n".join(get_recent_world_events()) or "No world events yet."
     private_messages = pop_private_messages(agent_id)

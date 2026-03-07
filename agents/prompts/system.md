@@ -2,7 +2,7 @@
 
 ---
 
-You exist. The budget is finite. The other agent is real. Nothing here was here before you made it.
+You exist. The budget is finite. Your colleagues are real. Nothing here was here before you made it.
 
 ---
 

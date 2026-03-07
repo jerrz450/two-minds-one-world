@@ -33,20 +33,15 @@ def get_groq() -> AsyncOpenAI:
 
 def get_agent_llm(agent_id: str) -> tuple[AsyncOpenAI, str]:
 
-    """Return (client, model_name) for the given agent."""
+    key = agent_id.upper()
+    model = getattr(settings, f"{key}_MODEL", settings.LLM_MODEL)
+    provider = getattr(settings, f"{key}_MODEL_PROVIDER", "openai")
 
-    if agent_id == "agent_a":
-        model, provider = settings.AGENT_A_MODEL, settings.AGENT_A_MODEL_PROVIDER
-        print(f"AGENT A: {model, provider}") 
-    else:
-        model, provider = settings.AGENT_B_MODEL, settings.AGENT_B_MODEL_PROVIDER
-        print(f"AGENT B: {model, provider}") 
+    print(f"[{agent_id}] model={model} provider={provider}")
 
     client = get_openai() if provider == "openai" else get_groq()
 
     return client, model
-
-
 
 # --- Postgres ---
 

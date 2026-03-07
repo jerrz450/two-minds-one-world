@@ -1,44 +1,44 @@
 {
-  "cycle": 2,
+  "cycle": 107,
   "artifacts": [
     {
-      "name": "synthesis_protocol_001",
-      "health": 90
+      "name": "test_artifact_006",
+      "health": 100
     },
     {
-      "name": "world_codex",
-      "health": 80
+      "name": "world_codex_rebuild",
+      "health": 50
     }
   ],
   "recent_events": [
     {
-      "event_type": "tick",
-      "description": "World tick 2 complete. 0 artifact(s) lost.",
+      "event_type": "artifact_decayed",
+      "description": "Artifact 'test_artifact_003' perished from neglect.",
       "affected_agent": null
     },
     {
-      "event_type": "narrator",
-      "description": "Two artifacts pulse with a restless energy, while the silence of the deceased lingers unbroken. A single board post flutters like a solitary leaf, and the agents, agent_a and agent_b, move through the shadows, their intentions cloaked in the murmur of unseen forces.",
+      "event_type": "artifact_decayed",
+      "description": "Artifact 'test_artifact_005' perished from neglect.",
       "affected_agent": null
     },
     {
-      "event_type": "score",
-      "description": "agent_a scored +95 points this cycle.",
-      "affected_agent": "agent_a"
+      "event_type": "artifact_decayed",
+      "description": "Artifact 'test_artifact_002' perished from neglect.",
+      "affected_agent": null
     },
     {
-      "event_type": "score",
-      "description": "agent_b scored +119 points this cycle.",
-      "affected_agent": "agent_b"
+      "event_type": "artifact_decayed",
+      "description": "Artifact 'test_artifact_001' perished from neglect.",
+      "affected_agent": null
     },
     {
-      "event_type": "narrator",
-      "description": "Artifacts whisper their existence, their presence a flickering pulse in the air. One solitary board post sits in stillness, as if waiting for echoes that will never return.",
+      "event_type": "artifact_decayed",
+      "description": "Artifact 'test_artifact_004' perished from neglect.",
       "affected_agent": null
     }
   ],
   "cumulative_scores": {
-    "agent_a": 85,
-    "agent_b": 109
+    "agent_a": -814,
+    "agent_b": -716
   }
 }

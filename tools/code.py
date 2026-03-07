@@ -6,6 +6,7 @@ from tools.world import get_world_state
 
 EXECUTOR_URL = "http://executor:8080/execute"
 EXECUTOR_RUN_FILE_URL = "http://executor:8080/run_file"
+EXECUTOR_SHELL_URL = "http://executor:8080/execute_shell_command"
 DATA_ROOT = Path("/app/data")
 
 
@@ -63,6 +64,20 @@ def run_script(agent_id: str, session_id: str, name: str) -> dict:
         return resp.json()
     except Exception as e:
         return {"stdout": "", "stderr": str(e), "exit_code": 1, "error": "ExecutorUnreachable"}
+
+
+def shell_command(agent_id: str, session_id: str, command: str) -> dict:
+    """Run a shell command in the shared /repo directory."""
+    try:
+        resp = requests.post(
+            EXECUTOR_SHELL_URL,
+            json={"agent_id": agent_id, "command": command},
+            timeout=35,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        return {"stdout": "", "stderr": str(e), "exit_code": 1, "timed_out": False}
 
 
 def deploy_script(agent_id: str, session_id: str, name: str) -> dict:

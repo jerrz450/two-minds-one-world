@@ -8,7 +8,9 @@ from db.events import get_recent_events
 
 
 def pop_private_messages(agent_id: str) -> list[str]:
+
     """Return unread private messages for this agent and mark them as read."""
+
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
@@ -21,6 +23,7 @@ def pop_private_messages(agent_id: str) -> list[str]:
                 (agent_id,),
             )
             rows = cur.fetchall()
+
     return [r["content"] for r in rows]
 
 # Default state for the very first session — agent has no history yet.
@@ -89,7 +92,9 @@ def save_working_memory(agent_id: str, session_id: str, state: WorkingMemoryStat
 
 
 def get_last_session_time(agent_id: str) -> datetime | None:
+
     """Return the created_at timestamp of the most recent working memory save."""
+
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -139,4 +144,3 @@ def load_recent_events_formatted(agent_id: str, limit: int = 30) -> str:
     
     events = get_recent_events(agent_id, limit=limit)
     return format_events_for_prompt(events)
-

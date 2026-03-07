@@ -2,8 +2,19 @@
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+AGENT_IDS = ["jordan", "marcus", "priya", "zoe", "devon"]
+
+# Per-agent model config — override via .env: JORDAN_MODEL, MARCUS_MODEL_PROVIDER, etc.
+_AGENT_DEFAULTS: dict[str, dict] = {
+    "jordan": {"model": "gpt-4.1",          "provider": "openai"},
+    "marcus": {"model": "gpt-4.1",          "provider": "openai"},
+    "priya":  {"model": "qwen/qwen3-32b",   "provider": "groq"},
+    "zoe":    {"model": "gpt-4.1",          "provider": "openai"},
+    "devon":  {"model": "qwen/qwen3-32b",   "provider": "groq"},
+}
+
 class Settings(BaseSettings):
-    
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     OPENAI_API_KEY: str | None = None
@@ -12,11 +23,21 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gpt-4.1"
     DISTILL_MODEL: str = "gpt-4o-mini"
 
-    AGENT_A_MODEL: str = "gpt-4.1"
-    AGENT_B_MODEL: str = "qwen/qwen3-32b"
+    # Per-agent overrides (read dynamically in get_agent_llm)
+    JORDAN_MODEL: str = _AGENT_DEFAULTS["jordan"]["model"]
+    JORDAN_MODEL_PROVIDER: str = _AGENT_DEFAULTS["jordan"]["provider"]
 
-    AGENT_A_MODEL_PROVIDER: str = "openai"
-    AGENT_B_MODEL_PROVIDER: str = "groq"
+    MARCUS_MODEL: str = _AGENT_DEFAULTS["marcus"]["model"]
+    MARCUS_MODEL_PROVIDER: str = _AGENT_DEFAULTS["marcus"]["provider"]
+
+    PRIYA_MODEL: str = _AGENT_DEFAULTS["priya"]["model"]
+    PRIYA_MODEL_PROVIDER: str = _AGENT_DEFAULTS["priya"]["provider"]
+
+    ZOE_MODEL: str = _AGENT_DEFAULTS["zoe"]["model"]
+    ZOE_MODEL_PROVIDER: str = _AGENT_DEFAULTS["zoe"]["provider"]
+
+    DEVON_MODEL: str = _AGENT_DEFAULTS["devon"]["model"]
+    DEVON_MODEL_PROVIDER: str = _AGENT_DEFAULTS["devon"]["provider"]
 
     MAX_TOKENS: int = 150
     TEMPERATURE: float = 0.7
@@ -24,7 +45,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://twominds:changeme@localhost:5433/twominds"
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    AGENT_ID: str = "agent_a"
+    AGENT_ID: str = "jordan"
     BUDGET_USD: float = 5.00
 
 settings = Settings()

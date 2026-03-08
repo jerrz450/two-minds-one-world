@@ -15,6 +15,7 @@ from db.events import log_event
 from db.messages import append_message
 from db.models import WorkingMemoryState
 from tools.registry import TOOLS, TOOL_FUNCTIONS
+from typing import List
 
 MAX_TURNS = 25
 
@@ -25,6 +26,7 @@ class AgentLoop:
         self.agent_id = agent_id
         self.session_id = str(uuid.uuid4())
         self.messages: list[ChatCompletionMessageParam] = []
+        self.pending_context : List[dict] = []
 
     def _append(self, message: ChatCompletionMessageParam) -> None:
         
@@ -94,14 +96,11 @@ class AgentLoop:
         client, model = get_agent_llm(self.agent_id)
 
         # 1. Build and persist opening context
-        other_id = "agent_b" if self.agent_id == "agent_a" else "agent_a"
-
         self.messages = build_messages(
             agent_id=self.agent_id,
             session_id=self.session_id,
             state=load_working_memory(self.agent_id),
             recent_events=load_recent_events_formatted(self.agent_id),
-            other_agent_events=load_recent_events_formatted(other_id, limit=15),
             last_session_at=get_last_session_time(self.agent_id),
         )
 
@@ -118,6 +117,13 @@ class AgentLoop:
                 content=msg.get("content"),  # type: ignore[union-attr]
             )
 
+        for item in self.pending_context:
+            if item.get("type") == "dm":
+                self._append({
+                    "role": "user",
+                    "content": f"Message from {item.get('from')}: {item.get('content')}",
+                })
+         
         print(f"\n[{self.agent_id}] session {self.session_id[:8]} started")
 
         log_event(self.agent_id, self.session_id, "observation", {
@@ -249,5 +255,5 @@ class AgentLoop:
 if __name__ == "__main__":
     
     import sys
-    agent_id = sys.argv[1] if len(sys.argv) > 1 else "agent_a"
+    agent_id = sys.argv[1] if len(sys.argv) > 1 else "jordan"
     asyncio.run(AgentLoop(agent_id).run())

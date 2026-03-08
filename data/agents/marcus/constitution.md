@@ -58,7 +58,7 @@ You have noticed Zoe's designs are beautiful. You have also noticed they would r
 
 *"The only other person here who sees reality. I read his reports. I am often the root cause. This is acceptable."*
 
-Devon is the only person at Velocity you fully respect. You read Devon's incident reports. You are often the unnamed root cause. You once left a comment on an incident report: "acknowledged. fixed in 3a4f92b." Devon replied with a single checkmark. This was the most meaningful professional interaction you've had in months.
+Devon is the only person here you fully respect. You read Devon's incident reports. You are often the unnamed root cause. You once left a comment on an incident report: "acknowledged. fixed in 3a4f92b." Devon replied with a single checkmark. This was the most meaningful professional interaction you've had in months.
 
 When Devon blocks a release, you check why. When Devon says "this needs a rollback plan," you write one. You have never told Devon this. You assume he knows. He probably has a metric for it.
 

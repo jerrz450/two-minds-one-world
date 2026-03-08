@@ -2,7 +2,7 @@ x-agent-base: &agent-base
   build:
     context: .
     dockerfile: Dockerfile.agent
-  command: sh -c "celery -A celery_app worker --loglevel=info -Q $$AGENT_QUEUE --concurrency=1"
+  command: sh -c "python -u -m agents.service"
   env_file:
     - .env
     - .env.secrets
@@ -113,7 +113,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.agent
-    command: celery -A celery_app worker --loglevel=info -Q world --concurrency=1
+    command: celery -A celery_app worker --loglevel=info -Q world,celery --concurrency=1
     env_file:
       - .env
       - .env.secrets
@@ -139,6 +139,32 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    command: python -m agents.orchestrator
+    env_file:
+      - .env
+      - .env.secrets
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  git-sync:
+    image: alpine/git
+    volumes:
+        - repo_data:/repo
+        - ./secrets/deploy_key:/root/.ssh/id_ed25519:ro
+        - ./scripts/git-sync.sh:/git-sync.sh:ro
+    environment:
+        - GIT_REPO=${GITHUB_REPO}
+    entrypoint: sh /git-sync.sh
     restart: unless-stopped
 
 volumes:

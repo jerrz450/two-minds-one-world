@@ -17,7 +17,7 @@ def run_shell_command(agent_id: str, command: str) -> ShellResponse:
     key = agent_id.upper()
     
     git_name  = os.environ.get(f"GIT_AUTHOR_NAME_{key}", agent_id)
-    git_email = os.environ.get(f"GIT_AUTHOR_EMAIL_{key}", f"{agent_id}@velocity.dev")
+    git_email = os.environ.get(f"GIT_AUTHOR_EMAIL_{key}", f"{agent_id}@startup.dev")
 
     docker_cmd = [
         "docker", "run", "--rm",
@@ -59,7 +59,7 @@ def run_code(script_path: Path, agent_id: str) -> ExecResponse:
 
     key = agent_id.upper()
     git_name  = os.environ.get(f"GIT_AUTHOR_NAME_{key}", agent_id)
-    git_email = os.environ.get(f"GIT_AUTHOR_EMAIL_{key}", f"{agent_id}@velocity.dev")
+    git_email = os.environ.get(f"GIT_AUTHOR_EMAIL_{key}", f"{agent_id}@startup.dev")
 
     if req_file.exists():
         entrypoint = f"pip install -q -r {agent_workspace}/requirements.txt && python {script_path}"

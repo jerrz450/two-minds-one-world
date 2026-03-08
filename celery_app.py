@@ -13,24 +13,17 @@ app = Celery(
     include=["agents.tasks", "world.tasks"],
 )
 
-# Stagger agent sessions: jordan first, devon last — each offset by SESSION_INTERVAL/N
-_stagger = SESSION_INTERVAL // len(AGENT_IDS)
-
 _beat_schedule = {
     "world-tick": {
         "task": "world.tasks.world_tick",
         "schedule": WORLD_TICK_INTERVAL,
         "options": {"queue": "world"},
     },
-}
-
-for i, agent_id in enumerate(AGENT_IDS):
-    _beat_schedule[f"session-{agent_id}"] = {
-        "task": "agents.tasks.run_session",
+    "orchestrator-cycle": {
+        "task": "agents.tasks.run_cycle",
         "schedule": SESSION_INTERVAL,
-        "args": [agent_id],
-        "options": {"queue": agent_id, "countdown": i * _stagger},
-    }
+    },
+}
 
 app.conf.update(
     task_serializer="json",

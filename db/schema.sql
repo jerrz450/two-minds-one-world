@@ -204,13 +204,13 @@ INSERT INTO working_memory (id, agent_id, session_id, state) VALUES (
 -- Starter artifacts
 INSERT INTO world_artifacts (name, content, health) VALUES (
     'backlog',
-    E'# Velocity Product Backlog\n\nOwner: Jordan\n\n## v1 Goal\nTBD — pending first sprint planning\n\n## Tickets\n(empty — Jordan has not run sprint planning yet)\n\n## Done\n(empty)',
+    E'# Product Backlog\n\nOwner: Jordan\n\n## Company Name\nNot decided yet. Jordan needs to propose one.\n\n## v1 Goal\nTBD — pending first sprint planning\n\n## Tickets\n(empty — Jordan has not run sprint planning yet)\n\n## Done\n(empty)',
     100
 ) ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO world_artifacts (name, content, health) VALUES (
     'infrastructure',
-    E'# Velocity Infrastructure\n\nOwner: Devon\n\n## Status\nNot yet set up.\n\n## Services\n(none deployed)\n\n## Incidents\n(none filed — yet)',
+    E'# Infrastructure\n\nOwner: Devon\n\n## Status\nNot yet set up.\n\n## Services\n(none deployed)\n\n## Incidents\n(none filed — yet)',
     100
 ) ON CONFLICT (name) DO NOTHING;
 

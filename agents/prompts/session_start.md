@@ -25,8 +25,6 @@ Edit TODO.md and IDENTITY.md in your workspace to update them. Coding workflow: 
 
 {recent_events}
 
-{other_agent_events}
-
 {board}
 
 {artifacts}

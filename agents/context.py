@@ -103,7 +103,6 @@ def fill_session_start(
     session_id: str,
     recent_events: str,
     last_session_at: datetime | None,
-    other_agent_events: str,
     board: str,
     artifacts: str,
     i_want: list[str],
@@ -122,7 +121,6 @@ def fill_session_start(
         timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         recent_events=recent_events,
         session_gap=_format_gap(last_session_at),
-        other_agent_events=other_agent_events,
         board=board,
         artifacts=artifacts,
         i_want=_format_list(i_want),
@@ -142,7 +140,6 @@ def build_messages(
     session_id: str,
     state: WorkingMemoryState,
     recent_events: str,
-    other_agent_events: str,
     last_session_at: datetime | None = None,
 ) -> list[ChatCompletionMessageParam]:
 
@@ -181,7 +178,7 @@ def build_messages(
         {"role": "system", "content": fill_system_prompt(prompts["system"], constitution, state)},
         {"role": "user",   "content": fill_session_start(
             prompts["session_start"], session_id, recent_events,
-            last_session_at, other_agent_events, board, artifacts,
+            last_session_at, board, artifacts,
             state.i_want, world_events, private, survival_signal, tool_usage, workspace, workspace_contents, todo, identity,
         )},
     ]

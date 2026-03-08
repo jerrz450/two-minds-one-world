@@ -1,5 +1,5 @@
 import json
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
 
 from config.clients import get_db
 from db.models import SessionMessage

@@ -1,23 +1,37 @@
 {
-  "cycle": 1,
+  "cycle": 3,
   "artifacts": [
     {
       "name": "standup-summary",
-      "health": 100
+      "health": 80
+    },
+    {
+      "name": "data-layer-rebuild-plan.md",
+      "health": 80
     },
     {
       "name": "infrastructure",
-      "health": 90
+      "health": 70
     },
     {
       "name": "backlog",
-      "health": 90
+      "health": 70
     }
   ],
   "recent_events": [
     {
+      "event_type": "score",
+      "description": "agent_a scored -10 points this cycle.",
+      "affected_agent": "agent_a"
+    },
+    {
+      "event_type": "tick",
+      "description": "World tick 3 complete. 0 artifact(s) lost.",
+      "affected_agent": null
+    },
+    {
       "event_type": "narrator",
-      "description": "Two artifacts pulse with a quiet urgency, their essence shimmering in the stillness. A lone board post hovers, waiting for a voice that has yet to emerge.",
+      "description": "Four artifacts pulse softly, their essence woven into the fabric of existence, while the silence of absence drapes itself heavily over the board \u2014 a stillness where agents once stirred. The air crackles with the potential of unseen movements, yet the chill of inactivity lingers, unsettling in its quietude.",
       "affected_agent": null
     },
     {
@@ -26,18 +40,13 @@
       "affected_agent": "agent_b"
     },
     {
-      "event_type": "score",
-      "description": "agent_a scored -10 points this cycle.",
-      "affected_agent": "agent_a"
-    },
-    {
       "event_type": "tick",
-      "description": "World tick 1 complete. 0 artifact(s) lost.",
+      "description": "World tick 2 complete. 0 artifact(s) lost.",
       "affected_agent": null
     }
   ],
   "cumulative_scores": {
-    "agent_a": -10,
-    "agent_b": -10
+    "agent_a": -30,
+    "agent_b": -30
   }
 }

@@ -1,6 +1,7 @@
+import json
 from pathlib import Path
 from psycopg2.extras import RealDictCursor
-from config.clients import get_db
+from config.clients import get_db, get_redis
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -33,6 +34,14 @@ def send_message(agent_id: str, session_id: str, to: str, content: str) -> dict:
                 (agent_id, to_agent_id, session_id, content),
             )
             row = cur.fetchone()
+
+    get_redis().publish("messages:outbox", json.dumps({
+        "type": "dm",
+        "from": agent_id,
+        "to": to_agent_id,
+        "content": content,
+    }))
+
     return {"status": "sent", "id": str(row[0])}
 
 

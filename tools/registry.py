@@ -6,6 +6,7 @@ from tools.file_operations import read_file, write_file, edit_file
 from tools.board import write_board, read_board
 from tools.artifacts import artifact
 from tools.self_tools import send_message, read_messages
+from tools.tickets import create_ticket, update_ticket, list_tickets, open_pr, review_pr, comment_pr, merge_pr, close_pr, list_prs
 
 
 def finish_session(summary: str) -> dict:
@@ -27,6 +28,15 @@ TOOL_FUNCTIONS: dict[str, Callable[..., object]] = {
     "read_board":      read_board,
     "send_message":    send_message,
     "read_messages":   read_messages,
+    "create_ticket":   create_ticket,
+    "update_ticket":   update_ticket,
+    "list_tickets":    list_tickets,
+    "open_pr":         open_pr,
+    "review_pr":       review_pr,
+    "comment_pr":      comment_pr,
+    "merge_pr":        merge_pr,
+    "close_pr":        close_pr,
+    "list_prs":        list_prs,
 }
 
 TOOLS: list[ChatCompletionToolParam] = [
@@ -69,7 +79,7 @@ TOOLS: list[ChatCompletionToolParam] = [
         "type": "function",
         "function": {
             "name": "write_file",
-            "description": "Create or overwrite a file in your workspace. Use this to write a new script or fully replace an existing one.",
+            "description": "Create or overwrite a file in your personal workspace. Use this for notes, scripts, and drafts. To write files to the shared repo, use shell_command: e.g. 'cat > /repo/src/main.py << EOF\\n...\\nEOF'.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -212,13 +222,151 @@ TOOLS: list[ChatCompletionToolParam] = [
         "type": "function",
         "function": {
             "name": "shell_command",
-            "description": "Run a shell command in /repo (the shared git repository). Use this for git operations: git status, git log, git add, git commit, git diff, git branch, etc. No network access.",
+            "description": "Run a shell command in /repo (the shared codebase). Use this to write files, create directories, and run git commands. DO NOT run git push — a sync service handles pushing automatically. Examples: 'mkdir -p /repo/src', 'git checkout -b name/feature', 'git add -A && git commit -m \"message\"', 'git status'.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "command": {"type": "string", "description": "Shell command to run, e.g. 'git status' or 'git log --oneline -10'"},
                 },
                 "required": ["command"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_ticket",
+            "description": "Create a new ticket in the backlog.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title":       {"type": "string"},
+                    "description": {"type": "string"},
+                    "assignee":    {"type": "string", "description": "Agent name: jordan, marcus, priya, zoe, or devon"},
+                },
+                "required": ["title"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_ticket",
+            "description": "Update a ticket's status or assignee.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ticket_id": {"type": "string"},
+                    "status":    {"type": "string", "enum": ["backlog", "in-progress", "review", "done"]},
+                    "assignee":  {"type": "string"},
+                },
+                "required": ["ticket_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_tickets",
+            "description": "List tickets, optionally filtered by status.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string", "enum": ["backlog", "in-progress", "review", "done"]},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "open_pr",
+            "description": "Open a pull request on GitHub and notify the reviewer. Call this after committing your branch.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title":       {"type": "string"},
+                    "branch":      {"type": "string"},
+                    "reviewer":    {"type": "string", "description": "Agent name who should review"},
+                    "ticket_id":   {"type": "string"},
+                    "description": {"type": "string"},
+                },
+                "required": ["title", "branch", "reviewer"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "review_pr",
+            "description": "Approve or request changes on a PR. Notifies the author.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pr_id":    {"type": "string"},
+                    "approved": {"type": "boolean"},
+                    "comment":  {"type": "string"},
+                },
+                "required": ["pr_id", "approved"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "comment_pr",
+            "description": "Add a comment to a PR without approving or rejecting.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pr_id":   {"type": "string"},
+                    "content": {"type": "string"},
+                },
+                "required": ["pr_id", "content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "merge_pr",
+            "description": "Merge an approved PR. Only works if the PR is approved.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pr_id": {"type": "string"},
+                },
+                "required": ["pr_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "close_pr",
+            "description": "Close a PR without merging.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pr_id":  {"type": "string"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["pr_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_prs",
+            "description": "List pull requests, optionally filtered by status.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string", "enum": ["open", "approved", "changes_requested", "merged", "closed"]},
+                },
+                "required": [],
             },
         },
     },

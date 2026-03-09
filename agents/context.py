@@ -6,10 +6,9 @@ from openai.types.chat import ChatCompletionMessageParam
 from db.models import WorkingMemoryState
 from tools.board import read_board
 from tools.artifacts import list_artifacts
-from tools.world import get_survival_direction
 from tools.code import list_scripts
+from tools.tickets import list_prs
 from world.world_main import get_recent_world_events
-from agents.memory import pop_private_messages
 from db.events import get_last_session_tool_counts
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -80,13 +79,34 @@ def _format_board(posts: list[dict]) -> str:
 
     if not posts:
         return "No posts yet."
+    
     by_channel: dict[str, list[str]] = {}
+
     for p in posts[-20:]:
         by_channel.setdefault(p.get("channel", "general"), []).append(p["content"])
+
     lines = []
+
     for ch, contents in by_channel.items():
         lines.append(f"#{ch}")
         lines.extend(f"  {c}" for c in contents)
+
+    return "\n".join(lines)
+
+
+def _format_prs(agent_id: str) -> str:
+    
+    prs = [p for p in list_prs(agent_id, "") if p["status"] not in ("merged", "closed") and (p["author"] == agent_id or p["reviewer"] == agent_id)]
+    
+    if not prs:
+        return "None."
+    
+    lines = []
+
+    for p in prs:
+        role = "author" if p["author"] == agent_id else "reviewer"
+        lines.append(f"- [{p['id']}] {p['title']} ({p['status']}, you are {role})")
+
     return "\n".join(lines)
 
 
@@ -95,7 +115,7 @@ def _format_artifacts(artifacts: list[dict]) -> str:
     if not artifacts:
         return "None."
     
-    return "\n".join(f"- {a['name']} (health: {a['health']})" for a in artifacts)
+    return "\n".join(f"- {a['name']}" for a in artifacts)
 
 
 def fill_session_start(
@@ -105,10 +125,9 @@ def fill_session_start(
     last_session_at: datetime | None,
     board: str,
     artifacts: str,
+    prs: str,
     i_want: list[str],
     world_events: str,
-    private_message: str | None,
-    survival_signal: str,
     tool_usage: str,
     workspace: str,
     workspace_contents: str,
@@ -123,10 +142,9 @@ def fill_session_start(
         session_gap=_format_gap(last_session_at),
         board=board,
         artifacts=artifacts,
+        prs=prs,
         i_want=_format_list(i_want),
         world_events=world_events,
-        private_message=private_message or "",
-        survival_signal=survival_signal,
         tool_usage=tool_usage,
         workspace=workspace,
         workspace_contents=workspace_contents,
@@ -149,18 +167,19 @@ def build_messages(
     constitution = load_constitution(agent_id)
 
     from tools.board import CHANNELS
+
     all_posts = []
+
     for ch in CHANNELS:
         all_posts.extend(read_board(agent_id=agent_id, channel=ch))
+
     board = _format_board(all_posts)
     artifacts = _format_artifacts(list_artifacts())
+    prs = _format_prs(agent_id)
     world_events = "\n".join(get_recent_world_events()) or "No world events yet."
-    private_messages = pop_private_messages(agent_id)
-    private = "\n".join(private_messages) if private_messages else None
-
-    survival_signal = get_survival_direction(agent_id)
 
     counts = get_last_session_tool_counts(agent_id)
+
     if counts:
         tool_usage = "Tool usage last session: " + ", ".join(f"{t}×{n}" for t, n in counts.items())
     else:
@@ -178,8 +197,8 @@ def build_messages(
         {"role": "system", "content": fill_system_prompt(prompts["system"], constitution, state)},
         {"role": "user",   "content": fill_session_start(
             prompts["session_start"], session_id, recent_events,
-            last_session_at, board, artifacts,
-            state.i_want, world_events, private, survival_signal, tool_usage, workspace, workspace_contents, todo, identity,
+            last_session_at, board, artifacts, prs,
+            state.i_want, world_events, tool_usage, workspace, workspace_contents, todo, identity,
         )},
     ]
 

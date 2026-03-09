@@ -25,6 +25,7 @@ def read_file(agent_id: str, name: str) -> dict:
 def write_file(agent_id: str, name: str, content: str) -> dict:
 
     path = _workspace(agent_id) / name
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return {"status": "written", "name": name}
 

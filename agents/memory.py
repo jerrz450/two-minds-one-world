@@ -7,25 +7,6 @@ from db.models import WorkingMemoryState, WorkingMemory, Event
 from db.events import get_recent_events
 
 
-def pop_private_messages(agent_id: str) -> list[str]:
-
-    """Return unread private messages for this agent and mark them as read."""
-
-    with get_db() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
-                UPDATE agent_private_messages
-                SET used_at = NOW()
-                WHERE agent_id = %s AND used_at IS NULL
-                RETURNING content
-                """,
-                (agent_id,),
-            )
-            rows = cur.fetchall()
-
-    return [r["content"] for r in rows]
-
 # Default state for the very first session — agent has no history yet.
 _FIRST_SESSION_STATE = WorkingMemoryState(
     i_am="",

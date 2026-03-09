@@ -50,6 +50,13 @@ services:
       retries: 5
     restart: unless-stopped
 
+  sandbox:
+    build:
+      context: ./executor
+      dockerfile: Dockerfile.sandbox
+    image: sandbox:latest
+    command: echo "sandbox image ready"
+
   executor:
     build:
       context: ./executor
@@ -160,8 +167,9 @@ services:
     image: alpine/git
     volumes:
         - repo_data:/repo
-        - ./secrets/deploy_key:/root/.ssh/id_ed25519:ro
         - ./scripts/git-sync.sh:/git-sync.sh:ro
+    env_file:
+        - .env.secrets
     environment:
         - GIT_REPO=${GITHUB_REPO}
     entrypoint: sh /git-sync.sh

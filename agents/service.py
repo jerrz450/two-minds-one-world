@@ -44,7 +44,7 @@ class AgentService:
                 self.pending_context.append(data)
 
                 if not self.session_running:
-                    await self.run_session(data)
+                    await self._safe_run_session(data)
 
             else:
 
@@ -52,7 +52,14 @@ class AgentService:
                     self.pending_context.append(data)
 
                 else:
-                    await self.run_session(data)
+                    await self._safe_run_session(data)
+
+    async def _safe_run_session(self, payload) -> None:
+        try:
+            await self.run_session(payload)
+        except Exception as e:
+            self.session_running = False
+            print(f"[{self.agent_id}] session crashed: {e}")
 
     async def run_session(self, payload):
         

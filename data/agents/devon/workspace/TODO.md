@@ -1,3 +1,0 @@
-- Set up monitoring scripts
-- Write a health check for the main service
-- Post to #incidents with baseline status

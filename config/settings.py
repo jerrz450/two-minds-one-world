@@ -48,4 +48,8 @@ class Settings(BaseSettings):
     AGENT_ID: str = "jordan"
     BUDGET_USD: float = 5.00
 
+    GITHUB_TOKEN: str | None = None
+    GITHUB_REPO_OWNER: str = ""
+    GITHUB_REPO_NAME: str = ""
+
 settings = Settings()

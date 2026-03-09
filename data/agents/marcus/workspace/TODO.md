@@ -1,4 +1,0 @@
-- Assess codebase state (done: repo is empty)
-- Start data layer rebuild plan
-- Post initial engineering priorities
-- Begin core/data layer implementation

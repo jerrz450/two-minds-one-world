@@ -7,8 +7,9 @@ from models import ExecResponse, ShellResponse
 
 DATA_ROOT = Path("/data")
 TIMEOUT = 30
-MEMORY = "128m"
+MEMORY = "512m"
 CPUS = "0.5"
+SANDBOX_IMAGE = os.environ.get("SANDBOX_IMAGE", "python:3.12-slim")
 
 def run_shell_command(agent_id: str, command: str) -> ShellResponse:
 
@@ -21,15 +22,13 @@ def run_shell_command(agent_id: str, command: str) -> ShellResponse:
 
     docker_cmd = [
         "docker", "run", "--rm",
-        "--security-opt", "seccomp=/app/seccomp.json",
-        "--network", "none",
         "--memory", MEMORY,
         "--cpus", CPUS,
         "--volumes-from", executor_container_id,
         "-e", f"GIT_AUTHOR_NAME={git_name}",
         "-e", f"GIT_AUTHOR_EMAIL={git_email}",
         "--workdir", "/repo",
-        "python:3.12-slim",
+        SANDBOX_IMAGE,
         "sh", "-c", command,
     ]
 
@@ -75,7 +74,7 @@ def run_code(script_path: Path, agent_id: str) -> ExecResponse:
         "-e", f"GIT_AUTHOR_NAME={git_name}",
         "-e", f"GIT_AUTHOR_EMAIL={git_email}",
         "--workdir", str(agent_workspace),
-        "python:3.12-slim",
+        SANDBOX_IMAGE,
         "sh", "-c", entrypoint,
     ]
 
